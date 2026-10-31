@@ -4,21 +4,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Video to Hindi Text</title>
+<title>Video To Text Converter</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;padding:18px;background:#10111b;color:white;font-family:Arial,sans-serif}
 .container{max-width:650px;margin:auto}
 h1{text-align:center;color:#858bff}
 .card{background:#1c1e30;padding:17px;border-radius:14px;margin:15px 0}
-label{display:block;margin:12px 0}
-button,.filebtn{display:block;width:100%;padding:13px;margin:10px 0;border:0;border-radius:9px;background:#686fff;color:white;font-size:16px;font-weight:bold}
+label{display:block;margin:14px 0}
+button{display:block;width:100%;padding:13px;margin:10px 0;border:0;border-radius:9px;background:#686fff;color:white;font-size:16px;font-weight:bold}
 input[type=file]{width:100%;margin:12px 0}
-select,textarea{width:100%;padding:12px;border-radius:8px;background:#292b40;color:white;border:1px solid #555}
-textarea{min-height:220px;resize:vertical}
+textarea{width:100%;padding:12px;border-radius:8px;background:#292b40;color:white;border:1px solid #555;min-height:220px;resize:vertical;line-height:1.6}
 button:disabled{opacity:.5}
 #status{color:#aab0ff;white-space:pre-wrap;line-height:1.5}
-.small{color:#bbb;font-size:13px;line-height:1.5}
+.small{color:#bbb;font-size:13px;line-height:1.6}
 </style>
 </head>
 <body>
@@ -32,11 +31,11 @@ button:disabled{opacity:.5}
 <h3>2. Conversion Mode</h3>
 <label>
 <input type="radio" name="mode" value="hindi" checked>
- हिंदी Audio → हिंदी Text
+ Hindi Audio → Hindi Text (मूळ आवाज)
 </label>
 <label>
 <input type="radio" name="mode" value="translate">
- English Audio → हिंदी Translation
+ English Audio → Hindi Translation
 </label>
 
 <button id="start">Start Conversion</button>
@@ -53,8 +52,9 @@ button:disabled{opacity:.5}
 </div>
 
 <p class="small">
-पहिल्या वापरात AI Models डाउनलोड होतील. इंटरनेट सुरू ठेवा.
-मोठे भाषांतर मॉडेल डाउनलोड होण्यासाठी वेळ आणि फोनमध्ये जागा लागू शकते.
+पहिल्यांदा AI Models डाउनलोड होतील. इंटरनेट सुरू ठेवा.
+Whisper Small मॉडेलला फोनमध्ये जागा आणि मेमरी लागते.
+अचूकतेसाठी स्पष्ट आवाज आणि कमी Background Music असलेला व्हिडिओ वापरा.
 </p>
 </div>
 
@@ -84,6 +84,7 @@ function formatTime(seconds) {
   const m = Math.floor((seconds % 3600) / 60);
   const s = Math.floor(seconds % 60);
   const ms = Math.floor((seconds % 1) * 1000);
+
   return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')},${String(ms).padStart(3,'0')}`;
 }
 
@@ -94,15 +95,16 @@ function downloadFile(name, content, type) {
   a.href = url;
   a.download = name;
   a.click();
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
 
 async function loadWhisper() {
   if (!transcriber) {
-    status('Hindi/English Speech AI Model डाउनलोड होत आहे...');
+    status('Whisper Small AI Model डाउनलोड होत आहे...');
+
     transcriber = await pipeline(
       'automatic-speech-recognition',
-      'Xenova/whisper-tiny',
+      'Xenova/whisper-small',
       {
         progress_callback: p => {
           if (p.status) status('Speech Model: ' + p.status);
@@ -114,7 +116,8 @@ async function loadWhisper() {
 
 async function loadTranslator() {
   if (!translator) {
-    status('Hindi Translation Model डाउनलोड होत आहे. पहिल्यांदा वेळ लागू शकतो...');
+    status('Hindi Translation Model डाउनलोड होत आहे...');
+
     translator = await pipeline(
       'translation',
       'Xenova/nllb-200-distilled-600M',
@@ -129,6 +132,7 @@ async function loadTranslator() {
 
 function resample(input, oldRate, newRate) {
   if (oldRate === newRate) return input;
+
   const ratio = oldRate / newRate;
   const length = Math.floor(input.length / ratio);
   const result = new Float32Array(length);
@@ -138,35 +142,68 @@ function resample(input, oldRate, newRate) {
     const left = Math.floor(pos);
     const right = Math.min(left + 1, input.length - 1);
     const fraction = pos - left;
-    result[i] = input[left] * (1 - fraction) +
-                input[right] * fraction;
+
+    result[i] =
+      input[left] * (1 - fraction) +
+      input[right] * fraction;
   }
+
   return result;
 }
 
+// आवाजाची पातळी सुधारण्याची प्रक्रिया
+function normalizeAudio(audio) {
+  let peak = 0;
+
+  for (let i = 0; i < audio.length; i++) {
+    peak = Math.max(peak, Math.abs(audio[i]));
+  }
+
+  if (peak > 0.0001) {
+    const gain = Math.min(0.95 / peak, 8);
+
+    for (let i = 0; i < audio.length; i++) {
+      audio[i] *= gain;
+    }
+  }
+
+  return audio;
+}
+
 async function getAudio(file) {
-  status('व्हिडिओमधून Audio काढत आहे...');
+  status('व्हिडिओमधून आवाज काढत आहे...');
+
   const buffer = await file.arrayBuffer();
   const AudioCtx = window.AudioContext || window.webkitAudioContext;
   const context = new AudioCtx();
 
-  const decoded = await context.decodeAudioData(buffer);
-  const channels = decoded.numberOfChannels;
-  const mono = new Float32Array(decoded.length);
+  try {
+    const decoded = await context.decodeAudioData(buffer);
+    const channels = decoded.numberOfChannels;
+    const mono = new Float32Array(decoded.length);
 
-  for (let c = 0; c < channels; c++) {
-    const channel = decoded.getChannelData(c);
-    for (let i = 0; i < decoded.length; i++) {
-      mono[i] += channel[i] / channels;
+    // सर्व Audio Channels एकत्र करणे
+    for (let c = 0; c < channels; c++) {
+      const channel = decoded.getChannelData(c);
+
+      for (let i = 0; i < decoded.length; i++) {
+        mono[i] += channel[i] / channels;
+      }
     }
-  }
 
-  const audio = resample(mono, decoded.sampleRate, 16000);
-  await context.close();
-  return audio;
+    const audio = resample(
+      mono,
+      decoded.sampleRate,
+      16000
+    );
+
+    return normalizeAudio(audio);
+  } finally {
+    await context.close();
+  }
 }
 
-function splitText(text, maxLength = 350) {
+function splitText(text, maxLength = 300) {
   const sentences = text.match(/[^.!?।]+[.!?।]?/g) || [text];
   const parts = [];
   let current = '';
@@ -179,21 +216,25 @@ function splitText(text, maxLength = 350) {
       current += ' ' + sentence;
     }
   }
+
   if (current.trim()) parts.push(current.trim());
   return parts;
 }
 
 async function translateHindi(text) {
   await loadTranslator();
+
   const parts = splitText(text);
   const translated = [];
 
   for (let i = 0; i < parts.length; i++) {
-    status(`हिंदी भाषांतर सुरू आहे... ${i + 1}/${parts.length}`);
+    status(`हिंदी भाषांतर ${i + 1}/${parts.length}`);
+
     const result = await translator(parts[i], {
       src_lang: 'eng_Latn',
       tgt_lang: 'hin_Deva'
     });
+
     translated.push(result[0].translation_text);
   }
 
@@ -202,6 +243,7 @@ async function translateHindi(text) {
 
 startBtn.addEventListener('click', async () => {
   const file = videoInput.files[0];
+
   if (!file) {
     alert('आधी Video निवडा.');
     return;
@@ -212,12 +254,15 @@ startBtn.addEventListener('click', async () => {
   subtitles = [];
 
   try {
-    const mode = document.querySelector('input[name="mode"]:checked').value;
+    const mode = document.querySelector(
+      'input[name="mode"]:checked'
+    ).value;
 
     await loadWhisper();
+
     const audio = await getAudio(file);
 
-    status('Audio चे लिखाण तयार होत आहे...');
+    status('आवाज ओळखला जात आहे...');
 
     const result = await transcriber(audio, {
       language: mode === 'hindi' ? 'hindi' : 'english',
@@ -227,43 +272,60 @@ startBtn.addEventListener('click', async () => {
       stride_length_s: 5
     });
 
-    let chunks = result.chunks || [];
     let fullText = result.text || '';
+    let chunks = result.chunks || [];
 
+    if (!fullText.trim()) {
+      throw new Error('आवाजातून मजकूर मिळाला नाही.');
+    }
+
+    // Hindi Audio मोडमध्ये भाषांतर होत नाही.
     if (mode === 'translate') {
-      if (!fullText.trim()) throw new Error('आवाजातून मजकूर मिळाला नाही.');
-      fullText = await translateHindi(fullText);
+      if (chunks.length > 0) {
+        await loadTranslator();
 
-      if (chunks.length) {
         const translatedChunks = [];
+
         for (let i = 0; i < chunks.length; i++) {
-          status(`Subtitle भाषांतर... ${i + 1}/${chunks.length}`);
+          status(`हिंदी भाषांतर ${i + 1}/${chunks.length}`);
+
           const translated = await translateHindi(chunks[i].text);
+
           translatedChunks.push({
             text: translated,
             timestamp: chunks[i].timestamp
           });
         }
+
         chunks = translatedChunks;
+        fullText = chunks.map(c => c.text).join(' ');
+      } else {
+        fullText = await translateHindi(fullText);
       }
     }
 
     outputBox.value = fullText.trim();
 
     subtitles = chunks.map((chunk, i) => {
-      const times = chunk.timestamp || [i * 5, (i + 1) * 5];
+      const times = chunk.timestamp || [i * 30, (i + 1) * 30];
+
       return {
         start: times[0] ?? 0,
-        end: times[1] ?? ((times[0] ?? 0) + 5),
+        end: times[1] ?? ((times[0] ?? 0) + 30),
         text: chunk.text.trim()
       };
     });
 
     status('✅ Conversion Completed!');
+
   } catch (error) {
     console.error(error);
-    status('Error: ' + (error.message || error) +
-      '\nइंटरनेट तपासा किंवा छोटा व्हिडिओ वापरून पाहा.');
+
+    status(
+      'Error: ' + (error.message || error) +
+      '\nइंटरनेट, फोनची मेमरी तपासा किंवा छोटा व्हिडिओ वापरून पाहा.'
+    );
+
   } finally {
     startBtn.disabled = false;
   }
@@ -271,21 +333,39 @@ startBtn.addEventListener('click', async () => {
 
 document.getElementById('copy').onclick = async () => {
   if (!outputBox.value) return alert('मजकूर उपलब्ध नाही.');
-  await navigator.clipboard.writeText(outputBox.value);
+
+  try {
+    await navigator.clipboard.writeText(outputBox.value);
+  } catch (e) {
+    outputBox.select();
+    document.execCommand('copy');
+  }
+
   alert('Text Copy झाला!');
 };
 
 document.getElementById('txt').onclick = () => {
   if (!outputBox.value) return alert('मजकूर उपलब्ध नाही.');
-  downloadFile('transcript.txt', outputBox.value, 'text/plain;charset=utf-8');
+
+  downloadFile(
+    'transcript.txt',
+    outputBox.value,
+    'text/plain;charset=utf-8'
+  );
 };
 
 document.getElementById('srt').onclick = () => {
   if (!subtitles.length) return alert('Subtitle timestamps उपलब्ध नाहीत.');
+
   const content = subtitles.map((item, i) =>
     `${i + 1}\n${formatTime(item.start)} --> ${formatTime(item.end)}\n${item.text}`
   ).join('\n\n');
-  downloadFile('subtitles.srt', content, 'text/plain;charset=utf-8');
+
+  downloadFile(
+    'subtitles.srt',
+    content,
+    'text/plain;charset=utf-8'
+  );
 };
 
 document.getElementById('clear').onclick = () => {
