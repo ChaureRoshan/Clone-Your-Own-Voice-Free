@@ -47,9 +47,7 @@ app.post("/api/voice/create", upload.single("file"), async (req, res) => {
       "https://api.sarvam.ai/voices/create",
       {
         method: "POST",
-        headers: {
-          "api-subscription-key": API_KEY
-        },
+        headers: { "api-subscription-key": API_KEY },
         body: form
       }
     );
@@ -61,6 +59,7 @@ app.post("/api/voice/create", upload.single("file"), async (req, res) => {
     }
 
     res.json(data);
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -80,27 +79,34 @@ app.post("/api/voice/generate", async (req, res) => {
       });
     }
 
+    if (text.length > 1000) {
+      return res.status(400).json({
+        error: "Text 1000 characters पेक्षा कमी ठेवा"
+      });
+    }
+
+    const form = new FormData();
+
+    form.append("voice_id", voice_id);
+    form.append("text", text);
+    form.append("language_code", language_code);
+    form.append("output_audio_codec", "mp3");
+
     const response = await fetch(
       "https://api.sarvam.ai/voices/clone",
       {
         method: "POST",
-        headers: {
-          "api-subscription-key": API_KEY,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          voice_id,
-          text,
-          language_code,
-          output_audio_codec: "mp3"
-        })
+        headers: { "api-subscription-key": API_KEY },
+        body: form
       }
     );
 
     const data = await response.json();
 
     if (!response.ok) {
-      return res.status(response.status).json(data);
+      return res.status(response.status).json({
+        error: data
+      });
     }
 
     const audio = data.audio_b64 || data.audio;
@@ -121,6 +127,7 @@ app.post("/api/voice/generate", async (req, res) => {
     );
 
     res.send(audioBuffer);
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -131,4 +138,3 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("Voice Clone Backend running on port " + PORT);
 });
-
