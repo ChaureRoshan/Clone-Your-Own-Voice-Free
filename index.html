@@ -41,7 +41,6 @@ small{color:#bbb;line-height:1.5}
 
 <div class="card">
 <h3>2. Text to Voice</h3>
-
 <label>भाषा निवडा</label>
 <select id="outputLang">
 <option value="hi-IN">Hindi</option>
@@ -62,9 +61,7 @@ placeholder="इथे तुमचा मजकूर लिहा..."></textar
 </div>
 
 <script>
-// Backend deploy केल्यावर इथे त्याचा URL टाका.
-// उदाहरण: https://my-voice-backend.onrender.com
-const API_BASE = "https://YOUR-BACKEND-URL";
+const API_BASE = "https://my-ai-voice-clone.onrender.com";
 
 const videoFile = document.getElementById("videoFile");
 const createBtn = document.getElementById("createBtn");
@@ -122,21 +119,17 @@ async function extractReferenceAudio(file) {
 
   try {
     const decoded = await context.decodeAudioData(await file.arrayBuffer());
-
-    // पहिल्या 15 सेकंदांचा reference clip
     const duration = Math.min(15, decoded.duration);
     const length = Math.floor(duration * decoded.sampleRate);
     const mono = new Float32Array(length);
 
     for (let channel = 0; channel < decoded.numberOfChannels; channel++) {
       const data = decoded.getChannelData(channel);
-
       for (let i = 0; i < length; i++) {
         mono[i] += data[i] / decoded.numberOfChannels;
       }
     }
 
-    // आवाजाची पातळी संतुलित करणे
     let peak = 0;
     for (const sample of mono) peak = Math.max(peak, Math.abs(sample));
 
@@ -190,6 +183,7 @@ createBtn.onclick = async () => {
     generateBtn.disabled = false;
     voiceStatus.textContent = "✅ तुझा Voice Save झाला!";
     setStatus("आता Text टाकून Generate Same Voice दाब.");
+
   } catch (error) {
     voiceStatus.textContent = "Error: " + error.message;
     setStatus("Voice तयार झाला नाही.");
@@ -234,6 +228,7 @@ generateBtn.onclick = async () => {
     downloadBtn.hidden = false;
 
     setStatus("✅ तुझ्या आवाजात Audio तयार झाला!");
+
   } catch (error) {
     setStatus("Error: " + error.message);
   } finally {
