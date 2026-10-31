@@ -1,1 +1,250 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video to Text Converter</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#10111b;color:white;font-family:Arial,sans-serif}
+header{padding:22px;text-align:center;background:#191b2c}
+header h2{color:#858aff;margin:0}
+header p{color:#aaa;font-size:13px}
+.container{max-width:700px;margin:auto;padding:16px}
+.card{background:#1b1e2e;padding:17px;border-radius:14px;margin:15px 0;border:1px solid #34384b}
+h3{margin-top:0;color:#a4a8ff}
+button,.filebtn{background:#656cff;color:white;border:0;padding:13px 16px;border-radius:9px;font-size:15px;font-weight:bold;cursor:pointer;display:inline-block;margin:5px 3px}
+button:disabled{opacity:.5}
+input,select,textarea{width:100%;padding:12px;background:#10111b;color:white;border:1px solid #454963;border-radius:9px;margin:8px 0}
+textarea{height:230px;resize:vertical;line-height:1.6}
+video{width:100%;max-height:300px;border-radius:10px;background:black}
+.small{color:#aaa;font-size:13px;line-height:1.6}
+#status{color:#a5a9ff;line-height:1.6}
+#progress{width:100%;accent-color:#777cff}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+footer{text-align:center;color:#777;padding:25px;font-size:12px}
+</style>
+</head>
+<body>
+
+<header>
+<h2>🎬 Video to Text Converter</h2>
+<p>Free AI Video Speech to Text</p>
+</header>
+
+<div class="container">
+
+<div class="card">
+<h3>1. Choose Video</h3>
+<input type="file" id="file" accept="video/*">
+<video id="video" controls hidden></video>
+<p id="filename" class="small">No video selected</p>
+</div>
+
+<div class="card">
+<h3>2. Select Language</h3>
+<select id="language">
+<option value="auto">Auto Detect</option>
+<option value="hindi">Hindi</option>
+<option value="marathi">Marathi</option>
+<option value="english">English</option>
+<option value="tamil">Tamil</option>
+<option value="telugu">Telugu</option>
+<option value="spanish">Spanish</option>
+</select>
+<p class="small">AI model: Whisper Tiny (multilingual)</p>
+</div>
+
+<div class="card">
+<h3>3. Convert Audio to Text</h3>
+<button id="convert">🚀 Start Conversion</button>
+<p id="status">Select a video to begin.</p>
+<progress id="progress" value="0" max="100"></progress>
+<p class="small">First use requires downloading the AI model. It may take time and mobile data. Processing happens in your browser.</p>
+</div>
+
+<div class="card">
+<h3>4. Full Transcript</h3>
+<textarea id="output" placeholder="Your video dialogues will appear here..."></textarea>
+<div class="grid">
+<button id="copy">📋 Copy Text</button>
+<button id="txt">⬇ Download TXT</button>
+<button id="srt">⬇ Download SRT</button>
+<button id="clear">🗑 Clear Text</button>
+</div>
+</div>
+
+<div class="card">
+<h3>5. About App</h3>
+<p class="small">Convert video speech into text, edit dialogues, copy transcript and export subtitles with timestamps.</p>
+</div>
+
+</div>
+
+<footer>Video to Text Converter | Free Version</footer>
+
+<script type="module">
+import { pipeline, env } from
+'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
+
+env.allowLocalModels = false;
+env.useBrowserCache = true;
+
+const file = document.getElementById('file');
+const video = document.getElementById('video');
+const output = document.getElementById('output');
+const status = document.getElementById('status');
+const progress = document.getElementById('progress');
+const convert = document.getElementById('convert');
+
+let selectedFile = null;
+let model = null;
+let subtitles = [];
+
+file.addEventListener('change', () => {
+ selectedFile = file.files[0];
+ if(!selectedFile) return;
+ video.src = URL.createObjectURL(selectedFile);
+ video.hidden = false;
+ document.getElementById('filename').textContent =
+ selectedFile.name;
+ status.textContent = 'Video ready. Start conversion.';
+ output.value = '';
+ subtitles = [];
+});
+
+function timeFormat(seconds){
+ let ms = Math.floor((seconds % 1)*1000);
+ let total = Math.floor(seconds);
+ let h = Math.floor(total/3600);
+ let m = Math.floor((total%3600)/60);
+ let s = total%60;
+ return [h,m,s].map(x=>String(x).padStart(2,'0')).join(':')
+ + ',' + String(ms).padStart(3,'0');
+}
+
+async function getAudio(file){
+ const ctx = new AudioContext({sampleRate:16000});
+ const buffer = await ctx.decodeAudioData(await file.arrayBuffer());
+ const channels = [];
+ for(let i=0;i<buffer.numberOfChannels;i++){
+ channels.push(buffer.getChannelData(i));
+ }
+ const length = buffer.length;
+ const mono = new Float32Array(length);
+ for(let i=0;i<length;i++){
+  for(const channel of channels) mono[i] += channel[i]/channels.length;
+ }
+ const rate = buffer.sampleRate;
+ const targetLength = Math.floor(length*16000/rate);
+ const resampled = new Float32Array(targetLength);
+ for(let i=0;i<targetLength;i++){
+  resampled[i] = mono[Math.min(length-1,Math.floor(i*rate/16000))];
+ }
+ await ctx.close();
+ return resampled;
+}
+
+convert.addEventListener('click', async()=>{
+ if(!selectedFile){
+  alert('Please choose a video first.');
+  return;
+ }
+ if(convert.disabled) return;
+
+ convert.disabled = true;
+ progress.value = 0;
+ output.value = '';
+ subtitles = [];
+
+ try{
+  status.textContent = 'Loading AI model...';
+  if(!model){
+   model = await pipeline('automatic-speech-recognition',
+    'Xenova/whisper-tiny',{
+     progress_callback: p=>{
+      if(p.status==='progress' && p.total){
+       status.textContent =
+       'Downloading AI model: '+Math.round(p.progress)+'%';
+      }
+     }
+    });
+  }
+
+  status.textContent = 'Extracting audio from video...';
+  const audio = await getAudio(selectedFile);
+
+  if(!audio.length) throw new Error('No audio found.');
+
+  status.textContent = 'AI is converting speech to text...';
+
+  const lang = document.getElementById('language').value;
+  const options = {
+   chunk_length_s:30,
+   stride_length_s:5,
+   return_timestamps:true
+  };
+  if(lang!=='auto') options.language=lang;
+
+  const result = await model(audio,options);
+
+  output.value = result.text || '';
+
+  if(result.chunks){
+   subtitles = result.chunks.map((c,i)=>({
+    start:c.timestamp[0] || 0,
+    end:c.timestamp[1] || c.timestamp[0] || 0,
+    text:c.text
+   }));
+  }
+
+  progress.value = 100;
+  status.textContent = '✅ Conversion completed!';
+ }catch(e){
+  console.error(e);
+  status.textContent = 'Error: '+e.message+
+   '. Try a smaller video or another supported format.';
+ }finally{
+  convert.disabled = false;
+ }
+});
+
+document.getElementById('copy').onclick=async()=>{
+ await navigator.clipboard.writeText(output.value);
+ alert('Text copied!');
+};
+
+function download(name,content,type){
+ const blob = new Blob([content],{type});
+ const url = URL.createObjectURL(blob);
+ const a = document.createElement('a');
+ a.href=url;
+ a.download=name;
+ a.click();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+document.getElementById('txt').onclick=()=>{
+ if(!output.value.trim()) return alert('No text available');
+ download('transcript.txt',output.value,'text/plain;charset=utf-8');
+};
+
+document.getElementById('srt').onclick=()=>{
+ if(!subtitles.length) return alert('No timestamped subtitles available');
+ const content=subtitles.map((s,i)=>
+ (i+1)+'\n'+timeFormat(s.start)+' --> '+
+ timeFormat(s.end)+'\n'+s.text.trim()
+ ).join('\n\n');
+ download('subtitles.srt',content,'text/plain;charset=utf-8');
+};
+
+document.getElementById('clear').onclick=()=>{
+ output.value='';
+ subtitles=[];
+ status.textContent='Text cleared.';
+};
+</script>
+</body>
+</html>
+
