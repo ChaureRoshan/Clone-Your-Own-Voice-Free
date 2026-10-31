@@ -3,375 +3,251 @@
 <html lang="mr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Video To Text Converter</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>My AI Voice Clone</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;padding:18px;background:#10111b;color:white;font-family:Arial,sans-serif}
+body{margin:0;background:#10111b;color:white;font-family:Arial;padding:16px}
 .container{max-width:650px;margin:auto}
 h1{text-align:center;color:#858bff}
 .card{background:#1c1e30;padding:17px;border-radius:14px;margin:15px 0}
-label{display:block;margin:14px 0}
-button{display:block;width:100%;padding:13px;margin:10px 0;border:0;border-radius:9px;background:#686fff;color:white;font-size:16px;font-weight:bold}
-input[type=file]{width:100%;margin:12px 0}
-textarea{width:100%;padding:12px;border-radius:8px;background:#292b40;color:white;border:1px solid #555;min-height:220px;resize:vertical;line-height:1.6}
+input,select,textarea{width:100%;padding:12px;margin:8px 0;background:#292b40;color:white;border:1px solid #555;border-radius:8px}
+textarea{min-height:130px}
+button{width:100%;padding:14px;margin:8px 0;background:#686fff;color:white;border:0;border-radius:9px;font-size:16px;font-weight:bold}
 button:disabled{opacity:.5}
 #status{color:#aab0ff;white-space:pre-wrap;line-height:1.5}
-.small{color:#bbb;font-size:13px;line-height:1.6}
+audio{width:100%;margin-top:12px}
+small{color:#bbb;line-height:1.5}
 </style>
 </head>
 <body>
 <div class="container">
-<h1>🎬 Video To Text Converter</h1>
+<h1>🎙️ My AI Voice Clone</h1>
 
 <div class="card">
-<h3>1. Video निवडा</h3>
-<input type="file" id="video" accept="video/*">
+<h3>1. Upload Your Video</h3>
+<input type="file" id="videoFile" accept="video/*">
 
-<h3>2. Conversion Mode</h3>
-<label>
-<input type="radio" name="mode" value="hindi" checked>
- Hindi Audio → Hindi Text (मूळ आवाज)
-</label>
-<label>
-<input type="radio" name="mode" value="translate">
- English Audio → Hindi Translation
-</label>
+<label>व्हिडिओमधील आवाजाची भाषा</label>
+<select id="sourceLang">
+<option value="hi-IN">Hindi</option>
+<option value="mr-IN">Marathi</option>
+</select>
 
-<button id="start">Start Conversion</button>
-<p id="status">व्हिडिओ निवडा आणि Conversion सुरू करा.</p>
+<button id="createBtn">Extract Voice & Save My Voice</button>
+<p id="voiceStatus">व्हिडिओ निवडा.</p>
+<audio id="referencePlayer" controls hidden></audio>
 </div>
 
 <div class="card">
-<h3>3. Full Transcript</h3>
-<textarea id="output" placeholder="तुमचा मजकूर येथे दिसेल..."></textarea>
-<button id="copy">Copy Text</button>
-<button id="txt">Download TXT</button>
-<button id="srt">Download SRT</button>
-<button id="clear">Clear Text</button>
+<h3>2. Text to Voice</h3>
+
+<label>भाषा निवडा</label>
+<select id="outputLang">
+<option value="hi-IN">Hindi</option>
+<option value="mr-IN">Marathi</option>
+</select>
+
+<textarea id="textInput" maxlength="1000"
+placeholder="इथे तुमचा मजकूर लिहा..."></textarea>
+
+<button id="generateBtn" disabled>Generate Same Voice</button>
+
+<audio id="resultAudio" controls hidden></audio>
+<button id="downloadBtn" hidden>Download MP3</button>
 </div>
 
-<p class="small">
-पहिल्यांदा AI Models डाउनलोड होतील. इंटरनेट सुरू ठेवा.
-Whisper Small मॉडेलला फोनमध्ये जागा आणि मेमरी लागते.
-अचूकतेसाठी स्पष्ट आवाज आणि कमी Background Music असलेला व्हिडिओ वापरा.
-</p>
+<p id="status">Ready</p>
+<small>फक्त स्वतःचा किंवा स्पष्ट परवानगी असलेला आवाज वापरा. Voice cloning साठी API वापराचे शुल्क लागू शकते.</small>
 </div>
 
-<script type="module">
-import { pipeline, env } from
-'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
+<script>
+// Backend deploy केल्यावर इथे त्याचा URL टाका.
+// उदाहरण: https://my-voice-backend.onrender.com
+const API_BASE = "https://YOUR-BACKEND-URL";
 
-env.allowLocalModels = false;
-env.useBrowserCache = true;
+const videoFile = document.getElementById("videoFile");
+const createBtn = document.getElementById("createBtn");
+const generateBtn = document.getElementById("generateBtn");
+const voiceStatus = document.getElementById("voiceStatus");
+const statusBox = document.getElementById("status");
+const referencePlayer = document.getElementById("referencePlayer");
+const resultAudio = document.getElementById("resultAudio");
+const downloadBtn = document.getElementById("downloadBtn");
 
-const videoInput = document.getElementById('video');
-const startBtn = document.getElementById('start');
-const statusBox = document.getElementById('status');
-const outputBox = document.getElementById('output');
+let voiceId = "";
+let resultUrl = "";
 
-let transcriber = null;
-let translator = null;
-let subtitles = [];
-
-function status(message) {
+function setStatus(message) {
   statusBox.textContent = message;
 }
 
-function formatTime(seconds) {
-  seconds = Math.max(0, seconds || 0);
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
-  const ms = Math.floor((seconds % 1) * 1000);
+function encodeWav(samples, sampleRate) {
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
 
-  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')},${String(ms).padStart(3,'0')}`;
-}
-
-function downloadFile(name, content, type) {
-  const blob = new Blob([content], {type});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1500);
-}
-
-async function loadWhisper() {
-  if (!transcriber) {
-    status('Whisper Small AI Model डाउनलोड होत आहे...');
-
-    transcriber = await pipeline(
-      'automatic-speech-recognition',
-      'Xenova/whisper-small',
-      {
-        progress_callback: p => {
-          if (p.status) status('Speech Model: ' + p.status);
-        }
-      }
-    );
-  }
-}
-
-async function loadTranslator() {
-  if (!translator) {
-    status('Hindi Translation Model डाउनलोड होत आहे...');
-
-    translator = await pipeline(
-      'translation',
-      'Xenova/nllb-200-distilled-600M',
-      {
-        progress_callback: p => {
-          if (p.status) status('Translation Model: ' + p.status);
-        }
-      }
-    );
-  }
-}
-
-function resample(input, oldRate, newRate) {
-  if (oldRate === newRate) return input;
-
-  const ratio = oldRate / newRate;
-  const length = Math.floor(input.length / ratio);
-  const result = new Float32Array(length);
-
-  for (let i = 0; i < length; i++) {
-    const pos = i * ratio;
-    const left = Math.floor(pos);
-    const right = Math.min(left + 1, input.length - 1);
-    const fraction = pos - left;
-
-    result[i] =
-      input[left] * (1 - fraction) +
-      input[right] * fraction;
-  }
-
-  return result;
-}
-
-// आवाजाची पातळी सुधारण्याची प्रक्रिया
-function normalizeAudio(audio) {
-  let peak = 0;
-
-  for (let i = 0; i < audio.length; i++) {
-    peak = Math.max(peak, Math.abs(audio[i]));
-  }
-
-  if (peak > 0.0001) {
-    const gain = Math.min(0.95 / peak, 8);
-
-    for (let i = 0; i < audio.length; i++) {
-      audio[i] *= gain;
+  function writeString(offset, text) {
+    for (let i = 0; i < text.length; i++) {
+      view.setUint8(offset + i, text.charCodeAt(i));
     }
   }
 
-  return audio;
+  writeString(0, "RIFF");
+  view.setUint32(4, 36 + samples.length * 2, true);
+  writeString(8, "WAVE");
+  writeString(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeString(36, "data");
+  view.setUint32(40, samples.length * 2, true);
+
+  let offset = 44;
+  for (let i = 0; i < samples.length; i++) {
+    const sample = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(offset, sample < 0 ? sample * 32768 : sample * 32767, true);
+    offset += 2;
+  }
+
+  return new Blob([buffer], {type:"audio/wav"});
 }
 
-async function getAudio(file) {
-  status('व्हिडिओमधून आवाज काढत आहे...');
-
-  const buffer = await file.arrayBuffer();
+async function extractReferenceAudio(file) {
   const AudioCtx = window.AudioContext || window.webkitAudioContext;
   const context = new AudioCtx();
 
   try {
-    const decoded = await context.decodeAudioData(buffer);
-    const channels = decoded.numberOfChannels;
-    const mono = new Float32Array(decoded.length);
+    const decoded = await context.decodeAudioData(await file.arrayBuffer());
 
-    // सर्व Audio Channels एकत्र करणे
-    for (let c = 0; c < channels; c++) {
-      const channel = decoded.getChannelData(c);
+    // पहिल्या 15 सेकंदांचा reference clip
+    const duration = Math.min(15, decoded.duration);
+    const length = Math.floor(duration * decoded.sampleRate);
+    const mono = new Float32Array(length);
 
-      for (let i = 0; i < decoded.length; i++) {
-        mono[i] += channel[i] / channels;
+    for (let channel = 0; channel < decoded.numberOfChannels; channel++) {
+      const data = decoded.getChannelData(channel);
+
+      for (let i = 0; i < length; i++) {
+        mono[i] += data[i] / decoded.numberOfChannels;
       }
     }
 
-    const audio = resample(
-      mono,
-      decoded.sampleRate,
-      16000
-    );
+    // आवाजाची पातळी संतुलित करणे
+    let peak = 0;
+    for (const sample of mono) peak = Math.max(peak, Math.abs(sample));
 
-    return normalizeAudio(audio);
+    if (peak > 0.0001) {
+      const gain = Math.min(0.95 / peak, 5);
+      for (let i = 0; i < mono.length; i++) mono[i] *= gain;
+    }
+
+    return encodeWav(mono, decoded.sampleRate);
   } finally {
     await context.close();
   }
 }
 
-function splitText(text, maxLength = 300) {
-  const sentences = text.match(/[^.!?।]+[.!?।]?/g) || [text];
-  const parts = [];
-  let current = '';
+createBtn.onclick = async () => {
+  const file = videoFile.files[0];
 
-  for (const sentence of sentences) {
-    if ((current + ' ' + sentence).length > maxLength && current) {
-      parts.push(current.trim());
-      current = sentence;
-    } else {
-      current += ' ' + sentence;
-    }
-  }
+  if (!file) return alert("आधी Video निवडा.");
 
-  if (current.trim()) parts.push(current.trim());
-  return parts;
-}
-
-async function translateHindi(text) {
-  await loadTranslator();
-
-  const parts = splitText(text);
-  const translated = [];
-
-  for (let i = 0; i < parts.length; i++) {
-    status(`हिंदी भाषांतर ${i + 1}/${parts.length}`);
-
-    const result = await translator(parts[i], {
-      src_lang: 'eng_Latn',
-      tgt_lang: 'hin_Deva'
-    });
-
-    translated.push(result[0].translation_text);
-  }
-
-  return translated.join(' ');
-}
-
-startBtn.addEventListener('click', async () => {
-  const file = videoInput.files[0];
-
-  if (!file) {
-    alert('आधी Video निवडा.');
-    return;
-  }
-
-  startBtn.disabled = true;
-  outputBox.value = '';
-  subtitles = [];
+  createBtn.disabled = true;
+  generateBtn.disabled = true;
+  voiceStatus.textContent = "व्हिडिओमधून 15 सेकंदांचा आवाज काढत आहे...";
 
   try {
-    const mode = document.querySelector(
-      'input[name="mode"]:checked'
-    ).value;
+    const wav = await extractReferenceAudio(file);
 
-    await loadWhisper();
-
-    const audio = await getAudio(file);
-
-    status('आवाज ओळखला जात आहे...');
-
-    const result = await transcriber(audio, {
-      language: mode === 'hindi' ? 'hindi' : 'english',
-      task: 'transcribe',
-      return_timestamps: true,
-      chunk_length_s: 30,
-      stride_length_s: 5
-    });
-
-    let fullText = result.text || '';
-    let chunks = result.chunks || [];
-
-    if (!fullText.trim()) {
-      throw new Error('आवाजातून मजकूर मिळाला नाही.');
+    if (wav.size > 50 * 1024 * 1024) {
+      throw new Error("Audio file खूप मोठी आहे.");
     }
 
-    // Hindi Audio मोडमध्ये भाषांतर होत नाही.
-    if (mode === 'translate') {
-      if (chunks.length > 0) {
-        await loadTranslator();
+    referencePlayer.src = URL.createObjectURL(wav);
+    referencePlayer.hidden = false;
 
-        const translatedChunks = [];
+    const form = new FormData();
+    form.append("file", wav, "reference.wav");
+    form.append("name", "My Personal Voice");
+    form.append("language", document.getElementById("sourceLang").value);
 
-        for (let i = 0; i < chunks.length; i++) {
-          status(`हिंदी भाषांतर ${i + 1}/${chunks.length}`);
+    voiceStatus.textContent = "तुझा Voice AI मध्ये तयार होत आहे...";
 
-          const translated = await translateHindi(chunks[i].text);
-
-          translatedChunks.push({
-            text: translated,
-            timestamp: chunks[i].timestamp
-          });
-        }
-
-        chunks = translatedChunks;
-        fullText = chunks.map(c => c.text).join(' ');
-      } else {
-        fullText = await translateHindi(fullText);
-      }
-    }
-
-    outputBox.value = fullText.trim();
-
-    subtitles = chunks.map((chunk, i) => {
-      const times = chunk.timestamp || [i * 30, (i + 1) * 30];
-
-      return {
-        start: times[0] ?? 0,
-        end: times[1] ?? ((times[0] ?? 0) + 30),
-        text: chunk.text.trim()
-      };
+    const response = await fetch(API_BASE + "/api/voice/create", {
+      method:"POST",
+      body:form
     });
 
-    status('✅ Conversion Completed!');
+    const data = await response.json();
 
+    if (!response.ok) throw new Error(data.error || "Voice create failed.");
+
+    voiceId = data.voice_id;
+    generateBtn.disabled = false;
+    voiceStatus.textContent = "✅ तुझा Voice Save झाला!";
+    setStatus("आता Text टाकून Generate Same Voice दाब.");
   } catch (error) {
-    console.error(error);
-
-    status(
-      'Error: ' + (error.message || error) +
-      '\nइंटरनेट, फोनची मेमरी तपासा किंवा छोटा व्हिडिओ वापरून पाहा.'
-    );
-
+    voiceStatus.textContent = "Error: " + error.message;
+    setStatus("Voice तयार झाला नाही.");
   } finally {
-    startBtn.disabled = false;
+    createBtn.disabled = false;
   }
-});
+};
 
-document.getElementById('copy').onclick = async () => {
-  if (!outputBox.value) return alert('मजकूर उपलब्ध नाही.');
+generateBtn.onclick = async () => {
+  const text = document.getElementById("textInput").value.trim();
+
+  if (!voiceId) return alert("आधी Voice Save कर.");
+  if (!text) return alert("आधी Text लिही.");
+  if (text.length > 1000) return alert("एका वेळी जास्तीत जास्त 1000 अक्षरे.");
+
+  generateBtn.disabled = true;
+  setStatus("तुझ्या आवाजात Audio तयार होत आहे...");
 
   try {
-    await navigator.clipboard.writeText(outputBox.value);
-  } catch (e) {
-    outputBox.select();
-    document.execCommand('copy');
+    const response = await fetch(API_BASE + "/api/voice/generate", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        voice_id:voiceId,
+        text:text,
+        language_code:document.getElementById("outputLang").value
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error || "Audio generation failed.");
+    }
+
+    const blob = await response.blob();
+
+    if (resultUrl) URL.revokeObjectURL(resultUrl);
+    resultUrl = URL.createObjectURL(blob);
+
+    resultAudio.src = resultUrl;
+    resultAudio.hidden = false;
+    downloadBtn.hidden = false;
+
+    setStatus("✅ तुझ्या आवाजात Audio तयार झाला!");
+  } catch (error) {
+    setStatus("Error: " + error.message);
+  } finally {
+    generateBtn.disabled = false;
   }
-
-  alert('Text Copy झाला!');
 };
 
-document.getElementById('txt').onclick = () => {
-  if (!outputBox.value) return alert('मजकूर उपलब्ध नाही.');
+downloadBtn.onclick = () => {
+  if (!resultUrl) return;
 
-  downloadFile(
-    'transcript.txt',
-    outputBox.value,
-    'text/plain;charset=utf-8'
-  );
-};
-
-document.getElementById('srt').onclick = () => {
-  if (!subtitles.length) return alert('Subtitle timestamps उपलब्ध नाहीत.');
-
-  const content = subtitles.map((item, i) =>
-    `${i + 1}\n${formatTime(item.start)} --> ${formatTime(item.end)}\n${item.text}`
-  ).join('\n\n');
-
-  downloadFile(
-    'subtitles.srt',
-    content,
-    'text/plain;charset=utf-8'
-  );
-};
-
-document.getElementById('clear').onclick = () => {
-  outputBox.value = '';
-  subtitles = [];
-  status('मजकूर साफ केला.');
+  const a = document.createElement("a");
+  a.href = resultUrl;
+  a.download = "my-cloned-voice.mp3";
+  a.click();
 };
 </script>
 </body>
