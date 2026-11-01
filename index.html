@@ -16,14 +16,13 @@ textarea{min-height:130px}
 button{width:100%;padding:14px;margin:8px 0;background:#686fff;color:white;border:0;border-radius:9px;font-size:16px;font-weight:bold}
 button:disabled{opacity:.5}
 #recordBtn.recording{background:#d94b65}
-#status{color:#aab0ff;white-space:pre-wrap;line-height:1.5}
-#voiceStatus{color:#aab0ff;white-space:pre-wrap}
+#status,#voiceStatus,#recordStatus{white-space:pre-wrap;line-height:1.5}
+#status,#voiceStatus{color:#aab0ff}
 audio{width:100%;margin-top:12px}
 small{color:#bbb;line-height:1.5}
 </style>
 </head>
 <body>
-
 <div class="container">
 <h1>🎙️ My AI Voice Clone</h1>
 
@@ -40,13 +39,11 @@ small{color:#bbb;line-height:1.5}
 <button id="createBtn">Extract Voice & Save My Voice</button>
 
 <hr>
-
 <h3>Choose Audio File</h3>
 <input type="file" id="audioFile" accept="audio/*">
 <button id="audioBtn">Choose Audio & Save My Voice</button>
 
 <hr>
-
 <h3>Record Your Own Voice</h3>
 <button id="recordBtn">🎤 Start Recording</button>
 <p id="recordStatus">स्वतःचा आवाज रेकॉर्ड करण्यासाठी बटण दाबा.</p>
@@ -57,7 +54,6 @@ small{color:#bbb;line-height:1.5}
 
 <div class="card">
 <h3>2. Text to Voice</h3>
-
 <label>भाषा निवडा</label>
 <select id="outputLang">
 <option value="hi-IN">Hindi</option>
@@ -100,6 +96,31 @@ let mediaRecorder = null;
 let recordedChunks = [];
 let recordingStream = null;
 let busy = false;
+
+/* Error चा खरा मेसेज दाखवणे */
+function readableError(error) {
+  if (error === null || error === undefined) {
+    return "अज्ञात Error";
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  if (error.message && typeof error.message === "string") {
+    return error.message;
+  }
+
+  if (error.error) {
+    return readableError(error.error);
+  }
+
+  try {
+    return JSON.stringify(error);
+  } catch (_) {
+    return String(error);
+  }
+}
 
 function setStatus(message) {
   statusBox.textContent = message;
@@ -156,6 +177,11 @@ function encodeWav(samples, sampleRate) {
 /* Video किंवा Audio मधून आवाज काढणे */
 async function extractReferenceAudio(file) {
   const AudioCtx = window.AudioContext || window.webkitAudioContext;
+
+  if (!AudioCtx) {
+    throw new Error("तुझ्या Browser मध्ये Audio support उपलब्ध नाही.");
+  }
+
   const context = new AudioCtx();
 
   try {
@@ -221,10 +247,16 @@ async function saveMyVoice(wav) {
       body: form
     });
 
-    const data = await response.json();
+    let data = {};
+
+    try {
+      data = await response.json();
+    } catch (_) {
+      throw new Error("Server कडून योग्य Response मिळाला नाही.");
+    }
 
     if (!response.ok) {
-      throw new Error(data.error || JSON.stringify(data));
+      throw new Error(readableError(data.error || data));
     }
 
     const newVoiceId =
@@ -234,7 +266,10 @@ async function saveMyVoice(wav) {
       data.data?.id;
 
     if (!newVoiceId) {
-      throw new Error("API कडून Voice ID मिळाली नाही.");
+      throw new Error(
+        "API कडून Voice ID मिळाली नाही. Server Response: " +
+        readableError(data)
+      );
     }
 
     voiceId = newVoiceId;
@@ -244,8 +279,11 @@ async function saveMyVoice(wav) {
     setStatus("आता Text टाकून Generate Same Voice दाब.");
 
   } catch (error) {
-    voiceStatus.textContent = "Error: " + error.message;
-    setStatus("Voice तयार झाला नाही.");
+    const message = readableError(error);
+    voiceStatus.textContent = "Error: " + message;
+    setStatus("Voice Save झाला नाही: " + message);
+    console.error("Save Voice Error:", error);
+
   } finally {
     setBusy(false);
   }
@@ -265,9 +303,11 @@ createBtn.onclick = async () => {
     voiceStatus.textContent = "व्हिडिओमधून 15 सेकंदांचा आवाज काढत आहे...";
     const wav = await extractReferenceAudio(file);
     await saveMyVoice(wav);
+
   } catch (error) {
-    voiceStatus.textContent = "Error: " + error.message;
-    setStatus("Video मधून आवाज काढता आला नाही.");
+    const message = readableError(error);
+    voiceStatus.textContent = "Error: " + message;
+    setStatus("Video मधून आवाज काढता आला नाही: " + message);
     setBusy(false);
   }
 };
@@ -286,9 +326,11 @@ audioBtn.onclick = async () => {
     voiceStatus.textContent = "Audio मधून 15 सेकंदांचा आवाज काढत आहे...";
     const wav = await extractReferenceAudio(file);
     await saveMyVoice(wav);
+
   } catch (error) {
-    voiceStatus.textContent = "Error: " + error.message;
-    setStatus("Audio मधून आवाज काढता आला नाही. समर्थित MP3 किंवा WAV फाईल वापरून पाहा.");
+    const message = readableError(error);
+    voiceStatus.textContent = "Error: " + message;
+    setStatus("Audio मधून आवाज काढता आला नाही: " + message);
     setBusy(false);
   }
 };
@@ -331,8 +373,16 @@ recordBtn.onclick = async () => {
       }
     };
 
+    mediaRecorder.onerror = (event) => {
+      console.error("MediaRecorder Error:", event);
+      recordStatus.textContent = "Recording मध्ये Error आला.";
+    };
+
     mediaRecorder.onstop = async () => {
-      recordingStream.getTracks().forEach(track => track.stop());
+      if (recordingStream) {
+        recordingStream.getTracks().forEach(track => track.stop());
+        recordingStream = null;
+      }
 
       try {
         const recordedBlob = new Blob(recordedChunks, {
@@ -344,13 +394,18 @@ recordBtn.onclick = async () => {
         }
 
         recordStatus.textContent = "Recording मधून आवाज काढत आहे...";
+
         const wav = await extractReferenceAudio(recordedBlob);
         await saveMyVoice(wav);
+
         recordStatus.textContent = "✅ Recording पूर्ण झाली.";
 
       } catch (error) {
-        recordStatus.textContent = "Error: " + error.message;
-        voiceStatus.textContent = "Recording मधून आवाज तयार झाला नाही.";
+        const message = readableError(error);
+        recordStatus.textContent = "Error: " + message;
+        voiceStatus.textContent = "Recording Error: " + message;
+        setStatus("Recording Save झाली नाही: " + message);
+        console.error("Recording Error:", error);
       }
     };
 
@@ -361,8 +416,11 @@ recordBtn.onclick = async () => {
     recordStatus.textContent = "🔴 Recording सुरू आहे. पूर्ण झाल्यावर Stop दाबा.";
 
   } catch (error) {
-    recordStatus.textContent = "Microphone Error: " + error.message;
+    const message = readableError(error);
+    recordStatus.textContent = "Microphone Error: " + message;
+    setStatus("Microphone Error: " + message);
     alert("Microphone Permission द्या आणि पुन्हा प्रयत्न करा.");
+    console.error("Microphone Error:", error);
   }
 };
 
@@ -411,7 +469,7 @@ generateBtn.onclick = async () => {
 
       try {
         const err = await response.json();
-        message = err.error || JSON.stringify(err);
+        message = readableError(err.error || err);
       } catch (_) {}
 
       throw new Error(message);
@@ -433,7 +491,10 @@ generateBtn.onclick = async () => {
     setStatus("✅ तुझ्या आवाजात Audio तयार झाला!");
 
   } catch (error) {
-    setStatus("Error: " + error.message);
+    const message = readableError(error);
+    setStatus("Error: " + message);
+    console.error("Generate Error:", error);
+
   } finally {
     generateBtn.disabled = false;
   }
