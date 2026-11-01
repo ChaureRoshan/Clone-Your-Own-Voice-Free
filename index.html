@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b0d17">
+<title>My AI Voice Clone</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b0d17;
+  --surface:rgba(255,255,255,.04);
+  --surface-2:rgba(255,255,255,.07);
+  --border:rgba(255,255,255,.09);
+  --border-strong:rgba(255,255,255,.18);
+  --text:#eef0ff;
+  --muted:#9aa0c3;
+  --accent:#7c6cff;
+  --accent-2:#22d3ee;
+  --danger:#ff5d7a;
+  --ok:#34d399;
+  --radius:20px;
+  --grad:linear-gradient(135deg,#7c6cff 0%,#4f8bff 55%,#22d3ee 100%);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;min-height:100vh;color:var(--text);
+  font-family:"Plus Jakarta Sans","Noto Sans Devanagari",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  background:
+    radial-gradient(900px 500px at 10% -10%,rgba(124,108,255,.22),transparent 60%),
+    radial-gradient(800px 500px at 100% 0%,rgba(34,211,238,.14),transparent 60%),
+    var(--bg);
+  background-attachment:fixed;
+  padding:28px 16px 120px;line-height:1.5;
+}
+.container{max-width:680px;margin:0 auto}
+
+/* Header */
+.hero{text-align:center;margin:8px 0 28px}
+.logo{
+  width:58px;height:58px;margin:0 auto 14px;border-radius:18px;background:var(--grad);
+  display:grid;place-items:center;font-size:28px;
+  box-shadow:0 10px 40px rgba(124,108,255,.45),inset 0 1px 0 rgba(255,255,255,.35);
+}
+h1{margin:0;font-size:clamp(26px,5vw,34px);font-weight:800;letter-spacing:-.02em}
+h1 span{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{margin:8px 0 0;color:var(--muted);font-size:15px}
+
+/* Cards */
+.card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:22px;margin:16px 0;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  box-shadow:0 20px 50px rgba(0,0,0,.25);
+}
+.card-head{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.step{
+  flex:none;width:32px;height:32px;border-radius:10px;background:var(--grad);
+  display:grid;place-items:center;font-weight:800;font-size:14px;
+}
+.card-head h2{margin:0;font-size:18px;font-weight:700;letter-spacing:-.01em}
+.card-head p{margin:0;color:var(--muted);font-size:13px}
+
+label.lbl{display:block;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:16px 0 6px}
+
+/* Tabs */
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:4px;background:rgba(0,0,0,.28);border:1px solid var(--border);border-radius:14px}
+.tab{
+  appearance:none;border:0;background:transparent;color:var(--muted);font:inherit;font-size:14px;font-weight:600;
+  padding:10px 6px;border-radius:10px;cursor:pointer;transition:.2s;display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.tab:hover{color:var(--text)}
+.tab[aria-selected="true"]{background:var(--surface-2);color:var(--text);box-shadow:inset 0 0 0 1px var(--border-strong)}
+.panel{margin-top:16px}
+.panel[hidden]{display:none}
+
+/* Drop zone */
+.drop{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;
+  padding:26px 16px;border:1.5px dashed var(--border-strong);border-radius:16px;background:rgba(255,255,255,.02);
+  cursor:pointer;transition:.2s;
+}
+.drop:hover,.drop.over{border-color:var(--accent);background:rgba(124,108,255,.08)}
+.drop .ico{font-size:28px}
+.drop strong{font-size:15px}
+.drop small{color:var(--muted);font-size:13px;word-break:break-all}
+.drop input{display:none}
+
+/* Form controls */
+select,textarea{
+  width:100%;font:inherit;font-size:15px;color:var(--text);background:rgba(0,0,0,.3);
+  border:1px solid var(--border);border-radius:12px;padding:12px 14px;transition:.2s;outline:none;
+}
+select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1.5l5 5 5-5' stroke='%239aa0c3' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:38px}
+select option{background:#171a2b}
+select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 4px rgba(124,108,255,.18)}
+textarea{min-height:150px;resize:vertical;line-height:1.6}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:520px){.row{grid-template-columns:1fr}}
+
+/* Buttons */
+.btn{
+  appearance:none;border:0;width:100%;margin-top:14px;padding:14px 18px;border-radius:14px;font:inherit;font-size:15px;font-weight:700;
+  color:#fff;background:var(--grad);cursor:pointer;transition:transform .15s,box-shadow .2s,opacity .2s;
+  box-shadow:0 10px 30px rgba(99,102,241,.4);display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 14px 36px rgba(99,102,241,.55)}
+.btn:active:not(:disabled){transform:translateY(0)}
+.btn:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
+.btn.ghost{background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--border-strong)}
+.btn.ghost:hover:not(:disabled){background:rgba(255,255,255,.11);box-shadow:inset 0 0 0 1px var(--border-strong)}
+.btn:focus-visible,.tab:focus-visible,.drop:focus-within{outline:2px solid var(--accent-2);outline-offset:2px}
+
+/* Recorder */
+.recorder{display:flex;flex-direction:column;align-items:center;gap:12px;padding:10px 0 2px}
+.rec-btn{
+  width:84px;height:84px;border-radius:50%;border:0;cursor:pointer;color:#fff;font-size:30px;background:var(--grad);
+  box-shadow:0 10px 36px rgba(99,102,241,.5);transition:.2s;position:relative;
+}
+.rec-btn:disabled{opacity:.45;cursor:not-allowed}
+.rec-btn.recording{background:linear-gradient(135deg,#ff5d7a,#ff3d68);box-shadow:0 10px 36px rgba(255,61,104,.5)}
+.rec-btn.recording::after{
+  content:"";position:absolute;inset:-8px;border-radius:50%;border:2px solid rgba(255,93,122,.6);animation:pulse 1.4s ease-out infinite;
+}
+@keyframes pulse{0%{transform:scale(.9);opacity:1}100%{transform:scale(1.35);opacity:0}}
+.timer{font-variant-numeric:tabular-nums;font-size:22px;font-weight:700;letter-spacing:.04em}
+.hint{color:var(--muted);font-size:13px;text-align:center;margin:0}
+
+/* Voice status chip */
+.chip{
+  display:flex;align-items:flex-start;gap:10px;margin-top:18px;padding:12px 14px;border-radius:12px;
+  background:rgba(0,0,0,.25);border:1px solid var(--border);font-size:14px;color:var(--muted);white-space:pre-wrap;
+}
+.chip .dot{flex:none;width:9px;height:9px;border-radius:50%;background:var(--muted);margin-top:6px}
+.chip.ok{color:var(--text);border-color:rgba(52,211,153,.35)}
+.chip.ok .dot{background:var(--ok);box-shadow:0 0 10px var(--ok)}
+.chip.err{color:#ffc2cd;border-color:rgba(255,93,122,.4)}
+.chip.err .dot{background:var(--danger)}
+audio{width:100%;margin-top:14px;border-radius:12px;color-scheme:dark}
+
+/* Generate extras */
+.meta{display:flex;justify-content:space-between;align-items:center;margin-top:6px;color:var(--muted);font-size:12px}
+.speed{display:flex;align-items:center;gap:12px;margin-top:4px}
+.speed input{flex:1;accent-color:var(--accent)}
+.speed output{min-width:42px;text-align:right;font-weight:700;font-size:14px;font-variant-numeric:tabular-nums}
+.progress{height:6px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:14px}
+.progress[hidden]{display:none}
+.progress i{display:block;height:100%;width:0;background:var(--grad);border-radius:99px;transition:width .3s}
+
+/* Toast status */
+#status{
+  position:fixed;left:50%;bottom:20px;transform:translate(-50%,20px);opacity:0;pointer-events:none;
+  max-width:min(92vw,560px);padding:12px 18px;border-radius:14px;font-size:14px;font-weight:500;
+  background:rgba(22,25,44,.92);border:1px solid var(--border-strong);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  box-shadow:0 14px 40px rgba(0,0,0,.45);transition:.25s;display:flex;gap:10px;align-items:center;white-space:pre-wrap;z-index:50;
+}
+#status.show{opacity:1;transform:translate(-50%,0)}
+#status.ok{border-color:rgba(52,211,153,.5)}
+#status.err{border-color:rgba(255,93,122,.55)}
+.spin{flex:none;width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.25);border-top-color:var(--accent-2);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin[hidden]{display:none}
+
+.foot{text-align:center;color:var(--muted);font-size:12.5px;margin-top:22px;padding:0 8px}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header class="hero">
+    <div class="logo" aria-hidden="true">🎙️</div>
+    <h1>My <span>AI Voice</span> Clone</h1>
+    <p class="sub">तुमचा आवाज सेव्ह करा आणि कोणताही मजकूर त्याच आवाजात ऐका</p>
+  </header>
+
+  <!-- Step 1 -->
+  <section class="card">
+    <div class="card-head">
+      <div class="step">1</div>
+      <div>
+        <h2>Voice Save करा</h2>
+        <p>Video, Audio किंवा थेट Recording — कोणताही एक पर्याय</p>
+      </div>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="Voice source">
+      <button class="tab" role="tab" id="tab-video" aria-selected="true" aria-controls="panel-video">🎬 Video</button>
+      <button class="tab" role="tab" id="tab-audio" aria-selected="false" aria-controls="panel-audio">🎵 Audio</button>
+      <button class="tab" role="tab" id="tab-record" aria-selected="false" aria-controls="panel-record">🎤 Record</button>
+    </div>
+
+    <label class="lbl" for="sourceLang">आवाजाची भाषा</label>
+    <select id="sourceLang">
+      <option value="hi-IN">Hindi</option>
+      <option value="mr-IN">Marathi</option>
+    </select>
+
+    <div class="panel" id="panel-video" role="tabpanel" aria-labelledby="tab-video">
+      <label class="drop" id="dropVideo">
+        <span class="ico">🎬</span>
+        <strong>Video निवडा किंवा इथे ड्रॉप करा</strong>
+        <small id="videoName">MP4, MOV, WEBM…</small>
+        <input type="file" id="videoFile" accept="video/*">
+      </label>
+      <button class="btn" id="createBtn">Extract Voice &amp; Save My Voice</button>
+    </div>
+
+    <div class="panel" id="panel-audio" role="tabpanel" aria-labelledby="tab-audio" hidden>
+      <label class="drop" id="dropAudio">
+        <span class="ico">🎵</span>
+        <strong>Audio File निवडा किंवा इथे ड्रॉप करा</strong>
+        <small id="audioName">MP3, WAV, M4A…</small>
+        <input type="file" id="audioFile" accept="audio/*">
+      </label>
+      <button class="btn" id="audioBtn">Choose Audio &amp; Save My Voice</button>
+    </div>
+
+    <div class="panel" id="panel-record" role="tabpanel" aria-labelledby="tab-record" hidden>
+      <div class="recorder">
+        <button class="rec-btn" id="recordBtn" aria-label="Start recording">🎤</button>
+        <div class="timer" id="recTimer">00:00</div>
+        <p class="hint" id="recordStatus">स्वतःचा आवाज रेकॉर्ड करण्यासाठी बटण दाबा. शांत जागी 10–15 सेकंद स्पष्ट बोला.</p>
+      </div>
+    </div>
+
+    <div class="chip" id="voiceChip"><span class="dot"></span><span id="voiceStatus">व्हिडिओ, ऑडिओ किंवा रेकॉर्डिंग निवडा.</span></div>
+    <audio id="referencePlayer" controls hidden></audio>
+  </section>
+
+  <!-- Step 2 -->
+  <section class="card">
+    <div class="card-head">
+      <div class="step">2</div>
+      <div>
+        <h2>Text to Voice</h2>
+        <p>लिहा, आणि तुमच्या आवाजात ऐका</p>
+      </div>
+    </div>
+
+    <label class="lbl" for="outputLang">भाषा निवडा</label>
+    <select id="outputLang">
+      <option value="hi-IN">Hindi</option>
+      <option value="mr-IN">Marathi</option>
+    </select>
+
+    <label class="lbl" for="textInput">मजकूर</label>
+    <textarea id="textInput" maxlength="3000" placeholder="इथे तुमचा मजकूर लिहा..."></textarea>
+    <div class="meta"><span>लांब मजकूर आपोआप छोट्या वाक्यांत विभागला जातो</span><span id="charCount">0 / 3000</span></div>
+
+    <label class="lbl" for="pace">बोलण्याचा वेग</label>
+    <div class="speed">
+      <input type="range" id="pace" min="0.7" max="1.3" step="0.05" value="1">
+      <output id="paceOut" for="pace">1.00×</output>
+    </div>
+
+    <button class="btn" id="generateBtn">✨ Generate Same Voice</button>
+    <div class="progress" id="progress" hidden><i id="progressBar"></i></div>
+
+    <audio id="resultAudio" controls hidden></audio>
+    <button class="btn ghost" id="downloadBtn" hidden>⬇ Download WAV</button>
+  </section>
+
+  <p class="foot">फक्त स्वतःचा किंवा स्पष्ट परवानगी असलेला आवाज वापरा. API वापराचे शुल्क लागू शकते.</p>
+</div>
+
+<div id="status" role="status" aria-live="polite"><span class="spin" id="spinner" hidden></span><span id="statusText"></span></div>
+
+<script>
+const API_BASE = "https://my-ai-voice-clone.onrender.com";
+
+/* Reference audio settings */
+const REF_SAMPLE_RATE = 24000;   // Sarvam चा native rate
+const REF_MAX_SECONDS = 14;      // 15s च्या मर्यादेच्या आत, थोडी safety
+const REF_MIN_SECONDS = 3;
+
+/* Generate settings */
+const CHUNK_MAX_CHARS = 220;     // छोटे chunks = कमी glitch
+const OUT_SAMPLE_RATE = 24000;
+
+const $ = (id) => document.getElementById(id);
+const videoFile = $("videoFile");
+const audioFile = $("audioFile");
+const createBtn = $("createBtn");
+const audioBtn = $("audioBtn");
+const recordBtn = $("recordBtn");
+const generateBtn = $("generateBtn");
+const voiceStatus = $("voiceStatus");
+const voiceChip = $("voiceChip");
+const recordStatus = $("recordStatus");
+const referencePlayer = $("referencePlayer");
+const resultAudio = $("resultAudio");
+const downloadBtn = $("downloadBtn");
+const textInput = $("textInput");
+const progress = $("progress");
+const progressBar = $("progressBar");
+
+let voiceId = "";
+try { voiceId = localStorage.getItem("mySavedVoiceId") || ""; } catch (_) {}
+let resultUrl = "";
+let referenceUrl = "";
+let mediaRecorder = null;
+let recordedChunks = [];
+let recordingStream = null;
+let recTick = null;
+let busy = false;
+let toastTimer = null;
+
+/* ---------- UI helpers ---------- */
+function readableError(error) {
+  if (error === null || error === undefined) return "अज्ञात Error";
+  if (typeof error === "string") return error;
+  if (error.message && typeof error.message === "string") return error.message;
+  if (error.error) return readableError(error.error);
+  try { return JSON.stringify(error); } catch (_) { return String(error); }
+}
+
+function setStatus(message, kind, sticky) {
+  const box = $("status");
+  $("statusText").textContent = message;
+  box.className = "show" + (kind ? " " + kind : "");
+  $("spinner").hidden = kind !== "busy";
+  clearTimeout(toastTimer);
+  if (!sticky && kind !== "busy") {
+    toastTimer = setTimeout(() => box.classList.remove("show"), 5000);
+  }
+}
+
+function setVoiceStatus(message, kind) {
+  voiceStatus.textContent = message;
+  voiceChip.className = "chip" + (kind ? " " + kind : "");
+}
+
+function setBusy(value) {
+  busy = value;
+  createBtn.disabled = value;
+  audioBtn.disabled = value;
+  generateBtn.disabled = value || !voiceId;
+  recordBtn.disabled = value && !(mediaRecorder && mediaRecorder.state === "recording");
+}
+
+/* Tabs */
+const tabs = ["video", "audio", "record"];
+function selectTab(name) {
+  tabs.forEach((t) => {
+    $("tab-" + t).setAttribute("aria-selected", String(t === name));
+    $("panel-" + t).hidden = t !== name;
+  });
+}
+tabs.forEach((t) => ($("tab-" + t).onclick = () => selectTab(t)));
+
+/* Drop zones */
+function wireDrop(zoneId, input, nameEl) {
+  const zone = $(zoneId);
+  input.addEventListener("change", () => {
+    $(nameEl).textContent = input.files[0] ? input.files[0].name : $(nameEl).dataset.def;
+  });
+  $(nameEl).dataset.def = $(nameEl).textContent;
+  ["dragenter", "dragover"].forEach((ev) =>
+    zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.add("over"); }));
+  ["dragleave", "drop"].forEach((ev) =>
+    zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.remove("over"); }));
+  zone.addEventListener("drop", (e) => {
+    if (e.dataTransfer.files.length) {
+      input.files = e.dataTransfer.files;
+      input.dispatchEvent(new Event("change"));
+    }
+  });
+}
+wireDrop("dropVideo", videoFile, "videoName");
+wireDrop("dropAudio", audioFile, "audioName");
+
+/* Char counter + pace */
+textInput.addEventListener("input", () => {
+  $("charCount").textContent = textInput.value.length + " / " + textInput.maxLength;
+});
+$("pace").addEventListener("input", (e) => {
+  $("paceOut").textContent = Number(e.target.value).toFixed(2) + "×";
+});
+
+/* ---------- WAV encode ---------- */
+function encodeWav(samples, sampleRate) {
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
+  const writeString = (offset, text) => {
+    for (let i = 0; i < text.length; i++) view.setUint8(offset + i, text.charCodeAt(i));
+  };
+
+  writeString(0, "RIFF");
+  view.setUint32(4, 36 + samples.length * 2, true);
+  writeString(8, "WAVE");
+  writeString(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeString(36, "data");
+  view.setUint32(40, samples.length * 2, true);
+
+  let offset = 44;
+  for (let i = 0; i < samples.length; i++) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(offset, s < 0 ? s * 32768 : s * 32767, true);
+    offset += 2;
+  }
+  return new Blob([buffer], { type: "audio/wav" });
+}
+
+/* ---------- Reference audio तयार करणे ---------- */
+const FRAME_MS = 20;
+
+function frameRms(data, frameLen) {
+  const n = Math.floor(data.length / frameLen);
+  const out = new Float32Array(n);
+  for (let f = 0; f < n; f++) {
+    let sum = 0;
+    const base = f * frameLen;
+    for (let i = 0; i < frameLen; i++) sum += data[base + i] * data[base + i];
+    out[f] = Math.sqrt(sum / frameLen);
+  }
+  return out;
+}
+
+async function extractReferenceAudio(file) {
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtx) throw new Error("तुझ्या Browser मध्ये Audio support उपलब्ध नाही.");
+
+  const context = new AudioCtx();
+  let decoded;
+  try {
+    decoded = await context.decodeAudioData(await file.arrayBuffer());
+  } catch (_) {
+    throw new Error("ही फाईल वाचता आली नाही. दुसरा Video/Audio वापरून पहा.");
+  } finally {
+    await context.close();
+  }
+
+  const sr = decoded.sampleRate;
+
+  /* 1) Mono mix */
+  const total = decoded.length;
+  let mono = new Float32Array(total);
+  for (let c = 0; c < decoded.numberOfChannels; c++) {
+    const d = decoded.getChannelData(c);
+    for (let i = 0; i < total; i++) mono[i] += d[i] / decoded.numberOfChannels;
+  }
+
+  let peak = 0;
+  for (let i = 0; i < total; i++) peak = Math.max(peak, Math.abs(mono[i]));
+  if (peak <= 0.0001) throw new Error("फाईलमध्ये आवाज सापडला नाही.");
+
+  /* 2) सुरुवातीची शांतता काढा */
+  const frameLen = Math.floor((sr * FRAME_MS) / 1000);
+  const rms = frameRms(mono, frameLen);
+  const sorted = Array.from(rms).sort((a, b) => a - b);
+  const loud = sorted[Math.floor(sorted.length * 0.9)] || 0;
+  const thr = Math.max(0.004, loud * 0.15);
+
+  let first = 0;
+  while (first < rms.length && rms[first] < thr) first++;
+  first = Math.max(0, first - 5); // 100ms आधीपासून
+  const startSample = first * frameLen;
+
+  /* 3) जास्तीत जास्त 14s घ्या, पण शब्दाच्या मधोमध तोडू नका —
+        शेवटच्या 1.5s मधला सर्वात शांत बिंदू शोधा */
+  const maxLen = Math.floor(REF_MAX_SECONDS * sr);
+  let endSample = Math.min(total, startSample + maxLen);
+
+  if (startSample + maxLen < total) {
+    const winStart = Math.floor((endSample - 1.5 * sr) / frameLen);
+    const winEnd = Math.floor(endSample / frameLen) - 1;
+    let best = winEnd, bestVal = Infinity;
+    for (let f = Math.max(winStart, first); f <= winEnd && f < rms.length; f++) {
+      if (rms[f] < bestVal) { bestVal = rms[f]; best = f; }
+    }
+    endSample = Math.min(total, (best + 1) * frameLen);
+  }
+
+  mono = mono.subarray(startSample, endSample);
+  if (mono.length / sr < REF_MIN_SECONDS) {
+    throw new Error("आवाज खूप कमी आहे (किमान " + REF_MIN_SECONDS + " सेकंद स्पष्ट बोलणे हवे).");
+  }
+
+  /* 4) 24 kHz ला resample + 80 Hz high-pass (rumble/hum काढण्यासाठी) */
+  const outLen = Math.ceil((mono.length * REF_SAMPLE_RATE) / sr);
+  const offline = new OfflineAudioContext(1, outLen, REF_SAMPLE_RATE);
+  const srcBuf = offline.createBuffer(1, mono.length, sr);
+  srcBuf.copyToChannel(mono, 0);
+  const src = offline.createBufferSource();
+  src.buffer = srcBuf;
+  const hp = offline.createBiquadFilter();
+  hp.type = "highpass";
+  hp.frequency.value = 80;
+  src.connect(hp);
+  hp.connect(offline.destination);
+  src.start();
+  const rendered = await offline.startRendering();
+  const out = new Float32Array(rendered.getChannelData(0));
+
+  /* 5) सौम्य normalize — noise जास्त वाढू नये म्हणून gain मर्यादित */
+  let p2 = 0;
+  for (let i = 0; i < out.length; i++) p2 = Math.max(p2, Math.abs(out[i]));
+  const gain = Math.min(0.89 / (p2 || 1), 3);
+  for (let i = 0; i < out.length; i++) out[i] *= gain;
+
+  /* 6) सुरुवात/शेवटी fade — click टाळण्यासाठी */
+  const fade = Math.floor(REF_SAMPLE_RATE * 0.02);
+  for (let i = 0; i < fade && i < out.length; i++) {
+    const g = i / fade;
+    out[i] *= g;
+    out[out.length - 1 - i] *= g;
+  }
+
+  return encodeWav(out, REF_SAMPLE_RATE);
+}
+
+/* ---------- Voice Save ---------- */
+async function saveMyVoice(wav) {
+  setBusy(true);
+  try {
+    if (referenceUrl) URL.revokeObjectURL(referenceUrl);
+    referenceUrl = URL.createObjectURL(wav);
+    referencePlayer.src = referenceUrl;
+    referencePlayer.hidden = false;
+
+    const form = new FormData();
+    form.append("file", wav, "reference.wav");
+    form.append("name", "My Personal Voice");
+    form.append("language", $("sourceLang").value);
+
+    setVoiceStatus("AI मध्ये Voice Save होत आहे... (पहिल्यांदा सर्व्हर जागा होण्यास थोडा वेळ लागू शकतो)");
+    setStatus("Voice Save होत आहे...", "busy");
+
+    const response = await fetch(API_BASE + "/api/voice/create", { method: "POST", body: form });
+
+    let data = {};
+    try { data = await response.json(); }
+    catch (_) { throw new Error("Server कडून योग्य Response मिळाला नाही."); }
+
+    if (!response.ok) throw new Error(readableError(data.error || data));
+
+    const newVoiceId = data.voice_id || data.data?.voice_id || data.id || data.data?.id;
+    if (!newVoiceId) {
+      throw new Error("API कडून Voice ID मिळाली नाही. Server Response: " + readableError(data));
+    }
+
+    voiceId = newVoiceId;
+    try { localStorage.setItem("mySavedVoiceId", voiceId); } catch (_) {}
+
+    setVoiceStatus("तुझा Voice Save झाला! खाली Text टाकून Generate करा.", "ok");
+    setStatus("✅ Voice Save झाला", "ok");
+  } catch (error) {
+    const message = readableError(error);
+    setVoiceStatus("Error: " + message, "err");
+    setStatus("Voice Save झाला नाही: " + message, "err", true);
+    console.error("Save Voice Error:", error);
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function handleFile(file, label) {
+  try {
+    setBusy(true);
+    setVoiceStatus(label + " मधून आवाज तयार करत आहे...");
+    setStatus("आवाज तयार करत आहे...", "busy");
+    const wav = await extractReferenceAudio(file);
+    await saveMyVoice(wav);
+  } catch (error) {
+    const message = readableError(error);
+    setVoiceStatus("Error: " + message, "err");
+    setStatus(label + " मधून आवाज काढता आला नाही: " + message, "err", true);
+    setBusy(false);
+  }
+}
+
+createBtn.onclick = () => {
+  const file = videoFile.files[0];
+  if (!file) { setStatus("आधी Video निवडा.", "err"); return; }
+  handleFile(file, "Video");
+};
+
+audioBtn.onclick = () => {
+  const file = audioFile.files[0];
+  if (!file) { setStatus("आधी Audio File निवडा.", "err"); return; }
+  handleFile(file, "Audio");
+};
+
+/* ---------- Recording ---------- */
+function stopTimer() { clearInterval(recTick); recTick = null; }
+
+function resetRecordUi() {
+  recordBtn.textContent = "🎤";
+  recordBtn.classList.remove("recording");
+  recordBtn.setAttribute("aria-label", "Start recording");
+  stopTimer();
+}
+
+recordBtn.onclick = async () => {
+  if (mediaRecorder && mediaRecorder.state === "recording") {
+    mediaRecorder.stop();
+    resetRecordUi();
+    recordStatus.textContent = "Recording थांबवली. Audio तयार होत आहे...";
+    return;
+  }
+
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error("Microphone साठी HTTPS Browser वापरा.");
+    }
+
+    /* echo/noise suppression चालू — स्वच्छ reference मिळण्यासाठी */
+    recordingStream = await navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+    });
+
+    recordedChunks = [];
+    const options = {};
+    if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) options.mimeType = "audio/webm;codecs=opus";
+    else if (MediaRecorder.isTypeSupported("audio/webm")) options.mimeType = "audio/webm";
+
+    mediaRecorder = new MediaRecorder(recordingStream, options);
+    mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) recordedChunks.push(e.data); };
+    mediaRecorder.onerror = (e) => {
+      console.error("MediaRecorder Error:", e);
+      recordStatus.textContent = "Recording मध्ये Error आला.";
+    };
+
+    mediaRecorder.onstop = async () => {
+      if (recordingStream) {
+        recordingStream.getTracks().forEach((t) => t.stop());
+        recordingStream = null;
+      }
+      try {
+        const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || "audio/webm" });
+        if (!blob.size) throw new Error("Recording रिकामी आहे.");
+        recordStatus.textContent = "Recording मधून आवाज काढत आहे...";
+        await handleFile(blob, "Recording");
+        recordStatus.textContent = "✅ Recording पूर्ण झाली.";
+      } catch (error) {
+        const message = readableError(error);
+        recordStatus.textContent = "Error: " + message;
+        setVoiceStatus("Recording Error: " + message, "err");
+        console.error("Recording Error:", error);
+      }
+    };
+
+    mediaRecorder.start();
+    const t0 = Date.now();
+    recordBtn.textContent = "⏹";
+    recordBtn.classList.add("recording");
+    recordBtn.setAttribute("aria-label", "Stop recording");
+    recordStatus.textContent = "🔴 Recording सुरू आहे. 10–15 सेकंद बोलून Stop दाबा.";
+    recTick = setInterval(() => {
+      const s = Math.floor((Date.now() - t0) / 1000);
+      $("recTimer").textContent = String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+      if (s >= 30 && mediaRecorder.state === "recording") recordBtn.click(); // auto-stop
+    }, 250);
+  } catch (error) {
+    const message = readableError(error);
+    recordStatus.textContent = "Microphone Error: " + message;
+    setStatus("Microphone Permission द्या आणि पुन्हा प्रयत्न करा.", "err");
+    console.error("Microphone Error:", error);
+  }
+};
+
+/* ---------- Text → chunks ---------- */
+function splitLong(sentence, max) {
+  const parts = [];
+  let rest = sentence.trim();
+  while (rest.length > max) {
+    let cut = Math.max(rest.lastIndexOf(",", max), rest.lastIndexOf("،", max), rest.lastIndexOf(";", max));
+    if (cut < max * 0.4) cut = rest.lastIndexOf(" ", max);
+    if (cut < max * 0.4) cut = max;
+    parts.push(rest.slice(0, cut + 1).trim());
+    rest = rest.slice(cut + 1).trim();
+  }
+  if (rest) parts.push(rest);
+  return parts;
+}
+
+function chunkText(text) {
+  const clean = text.replace(/[ \t]+/g, " ").trim();
+  const sentences = clean.match(/[^।.!?\n]+[।.!?]*|\n+/g) || [clean];
+  const chunks = [];
+  let current = "";
+
+  for (const raw of sentences) {
+    const s = raw.trim();
+    if (!s) continue;
+    for (const piece of s.length > CHUNK_MAX_CHARS ? splitLong(s, CHUNK_MAX_CHARS) : [s]) {
+      if (current && (current + " " + piece).length > CHUNK_MAX_CHARS) {
+        chunks.push(current);
+        current = piece;
+      } else {
+        current = current ? current + " " + piece : piece;
+      }
+    }
+  }
+  if (current) chunks.push(current);
+  return chunks;
+}
+
+/* ---------- Audio chunks जोडणे (click-free) ---------- */
+async function decodeChunk(blob, ctx) {
+  const buf = await ctx.decodeAudioData(await blob.arrayBuffer());
+  return new Float32Array(buf.getChannelData(0));
+}
+
+/* कडांवरची शांतता काढा, DC offset काढा, fade in/out लावा */
+function cleanChunk(data, sr) {
+  let sum = 0;
+  for (let i = 0; i < data.length; i++) sum += data[i];
+  const dc = sum / (data.length || 1);
+
+  const thr = 0.004;
+  let a = 0, b = data.length - 1;
+  while (a < b && Math.abs(data[a] - dc) < thr) a++;
+  while (b > a && Math.abs(data[b] - dc) < thr) b--;
+  a = Math.max(0, a - Math.floor(sr * 0.03));
+  b = Math.min(data.length - 1, b + Math.floor(sr * 0.05));
+
+  const out = new Float32Array(b - a + 1);
+  for (let i = 0; i < out.length; i++) out[i] = data[a + i] - dc;
+
+  const fade = Math.min(Math.floor(sr * 0.012), Math.floor(out.length / 4));
+  for (let i = 0; i < fade; i++) {
+    const g = i / fade;
+    out[i] *= g;
+    out[out.length - 1 - i] *= g;
+  }
+  return out;
+}
+
+function joinChunks(chunks, gaps, sr) {
+  let total = 0;
+  chunks.forEach((c, i) => (total += c.length + (i < chunks.length - 1 ? Math.floor(gaps[i] * sr) : 0)));
+  const out = new Float32Array(total);
+  let pos = 0;
+  chunks.forEach((c, i) => {
+    out.set(c, pos);
+    pos += c.length;
+    if (i < chunks.length - 1) pos += Math.floor(gaps[i] * sr);
+  });
+
+  /* clipping टाळण्यासाठी peak limit */
+  let peak = 0;
+  for (let i = 0; i < out.length; i++) peak = Math.max(peak, Math.abs(out[i]));
+  if (peak > 0.97) { const g = 0.97 / peak; for (let i = 0; i < out.length; i++) out[i] *= g; }
+  return out;
+}
+
+/* ---------- Generate ---------- */
+async function requestChunk(text, lang, pace) {
+  const response = await fetch(API_BASE + "/api/voice/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ voice_id: voiceId, text, language_code: lang, pace })
+  });
+
+  if (!response.ok) {
+    let message = "Audio generation failed.";
+    try { const err = await response.json(); message = readableError(err.error || err); } catch (_) {}
+    throw new Error(message);
+  }
+
+  const blob = await response.blob();
+  if (!blob.size) throw new Error("Audio रिकामा मिळाला.");
+  return blob;
+}
+
+async function requestChunkRetry(text, lang, pace) {
+  try {
+    return await requestChunk(text, lang, pace);
+  } catch (e) {
+    await new Promise((r) => setTimeout(r, 1200));
+    return requestChunk(text, lang, pace);
+  }
+}
+
+generateBtn.onclick = async () => {
+  const text = textInput.value.trim();
+  if (!voiceId) { setStatus("आधी Voice Save कर.", "err"); return; }
+  if (!text) { setStatus("आधी Text लिही.", "err"); return; }
+
+  const lang = $("outputLang").value;
+  const pace = Number($("pace").value) || 1;
+  const chunks = chunkText(text);
+
+  generateBtn.disabled = true;
+  progress.hidden = chunks.length < 2;
+  progressBar.style.width = "0%";
+  setStatus("तुझ्या आवाजात Audio तयार होत आहे...", "busy");
+
+  const ctx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: OUT_SAMPLE_RATE });
+
+  try {
+    const parts = [];
+    const gaps = [];
+
+    for (let i = 0; i < chunks.length; i++) {
+      if (chunks.length > 1) setStatus("Audio तयार होत आहे... " + (i + 1) + " / " + chunks.length, "busy");
+      const blob = await requestChunkRetry(chunks[i], lang, pace);
+      const data = await decodeChunk(blob, ctx);
+      parts.push(cleanChunk(data, ctx.sampleRate));
+
+      /* वाक्य संपले तर थोडा मोठा विराम, अन्यथा लहान */
+      gaps.push(/[।.!?]$/.test(chunks[i]) ? 0.22 : 0.09);
+      progressBar.style.width = Math.round(((i + 1) / chunks.length) * 100) + "%";
+    }
+
+    const merged = joinChunks(parts, gaps, ctx.sampleRate);
+    const wav = encodeWav(merged, ctx.sampleRate);
+
+    if (resultUrl) URL.revokeObjectURL(resultUrl);
+    resultUrl = URL.createObjectURL(wav);
+    resultAudio.src = resultUrl;
+    resultAudio.hidden = false;
+    downloadBtn.hidden = false;
+
+    setStatus("✅ तुझ्या आवाजात Audio तयार झाला!", "ok");
+  } catch (error) {
+    const message = readableError(error);
+    setStatus("Error: " + message, "err", true);
+    console.error("Generate Error:", error);
+  } finally {
+    ctx.close();
+    generateBtn.disabled = !voiceId;
+    setTimeout(() => (progress.hidden = true), 600);
+  }
+};
+
+downloadBtn.onclick = () => {
+  if (!resultUrl) return;
+  const a = document.createElement("a");
+  a.href = resultUrl;
+  a.download = "my-cloned-voice.wav";
+  a.click();
+};
+
+/* ---------- Init ---------- */
+if (voiceId) {
+  setVoiceStatus("आधीची Voice उपलब्ध आहे. नवीन हवी असेल तर वर पुन्हा Save करा.", "ok");
+  generateBtn.disabled = false;
+} else {
+  setVoiceStatus("व्हिडिओ, ऑडिओ किंवा रेकॉर्डिंग निवडा.");
+  generateBtn.disabled = true;
+}
+
+/* Render free server झोपलेला असतो — पेज उघडताच जागा करा */
+fetch(API_BASE + "/", { mode: "no-cors" }).catch(() => {});
+</script>
+</body>
+</html>
