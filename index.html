@@ -15,6 +15,7 @@ input,select,textarea{width:100%;padding:12px;margin:8px 0;background:#292b40;co
 textarea{min-height:130px}
 button{width:100%;padding:14px;margin:8px 0;background:#686fff;color:white;border:0;border-radius:9px;font-size:16px;font-weight:bold}
 button:disabled{opacity:.5}
+#recordBtn.recording{background:#d94b65}
 #status{color:#aab0ff;white-space:pre-wrap;line-height:1.5}
 #voiceStatus{color:#aab0ff;white-space:pre-wrap}
 audio{width:100%;margin-top:12px}
@@ -37,7 +38,20 @@ small{color:#bbb;line-height:1.5}
 </select>
 
 <button id="createBtn">Extract Voice & Save My Voice</button>
-<p id="voiceStatus">व्हिडिओ निवडा.</p>
+
+<hr>
+
+<h3>Choose Audio File</h3>
+<input type="file" id="audioFile" accept="audio/*">
+<button id="audioBtn">Choose Audio & Save My Voice</button>
+
+<hr>
+
+<h3>Record Your Own Voice</h3>
+<button id="recordBtn">🎤 Start Recording</button>
+<p id="recordStatus">स्वतःचा आवाज रेकॉर्ड करण्यासाठी बटण दाबा.</p>
+
+<p id="voiceStatus">व्हिडिओ, ऑडिओ किंवा रेकॉर्डिंग निवडा.</p>
 <audio id="referencePlayer" controls hidden></audio>
 </div>
 
@@ -67,19 +81,36 @@ placeholder="इथे तुमचा मजकूर लिहा..."></textar
 const API_BASE = "https://my-ai-voice-clone.onrender.com";
 
 const videoFile = document.getElementById("videoFile");
+const audioFile = document.getElementById("audioFile");
 const createBtn = document.getElementById("createBtn");
+const audioBtn = document.getElementById("audioBtn");
+const recordBtn = document.getElementById("recordBtn");
 const generateBtn = document.getElementById("generateBtn");
 const voiceStatus = document.getElementById("voiceStatus");
 const statusBox = document.getElementById("status");
+const recordStatus = document.getElementById("recordStatus");
 const referencePlayer = document.getElementById("referencePlayer");
 const resultAudio = document.getElementById("resultAudio");
 const downloadBtn = document.getElementById("downloadBtn");
 
 let voiceId = localStorage.getItem("mySavedVoiceId") || "";
 let resultUrl = "";
+let referenceUrl = "";
+let mediaRecorder = null;
+let recordedChunks = [];
+let recordingStream = null;
+let busy = false;
 
 function setStatus(message) {
   statusBox.textContent = message;
+}
+
+function setBusy(value) {
+  busy = value;
+  createBtn.disabled = value;
+  audioBtn.disabled = value;
+  generateBtn.disabled = value || !voiceId;
+  recordBtn.disabled = value;
 }
 
 function encodeWav(samples, sampleRate) {
@@ -122,6 +153,7 @@ function encodeWav(samples, sampleRate) {
   return new Blob([buffer], {type:"audio/wav"});
 }
 
+/* Video किंवा Audio मधून आवाज काढणे */
 async function extractReferenceAudio(file) {
   const AudioCtx = window.AudioContext || window.webkitAudioContext;
   const context = new AudioCtx();
@@ -150,7 +182,7 @@ async function extractReferenceAudio(file) {
     }
 
     if (peak <= 0.0001) {
-      throw new Error("व्हिडिओमध्ये आवाज सापडला नाही.");
+      throw new Error("फाईलमध्ये आवाज सापडला नाही.");
     }
 
     const gain = Math.min(0.95 / peak, 5);
@@ -166,46 +198,21 @@ async function extractReferenceAudio(file) {
   }
 }
 
-/* आधी सेव्ह केलेली Voice तपासा */
-if (voiceId) {
-  voiceStatus.textContent = "✅ आधीची Voice उपलब्ध आहे.";
-  setStatus("आता Text टाकून Generate Same Voice दाब.");
-} else {
-  voiceStatus.textContent = "व्हिडिओ निवडा आणि Voice Save करा.";
-}
-
-/* Voice Save */
-createBtn.onclick = async () => {
-  const file = videoFile.files[0];
-
-  if (!file) {
-    alert("आधी Video निवडा.");
-    return;
-  }
-
-  createBtn.disabled = true;
-  generateBtn.disabled = true;
-
-  voiceStatus.textContent =
-    "व्हिडिओमधून 15 सेकंदांचा आवाज काढत आहे...";
+/* काढलेला किंवा रेकॉर्ड केलेला आवाज सेव्ह करणे */
+async function saveMyVoice(wav) {
+  setBusy(true);
 
   try {
-    const wav = await extractReferenceAudio(file);
+    if (referenceUrl) URL.revokeObjectURL(referenceUrl);
 
-    if (wav.size > 50 * 1024 * 1024) {
-      throw new Error("Audio file खूप मोठी आहे.");
-    }
-
-    referencePlayer.src = URL.createObjectURL(wav);
+    referenceUrl = URL.createObjectURL(wav);
+    referencePlayer.src = referenceUrl;
     referencePlayer.hidden = false;
 
     const form = new FormData();
     form.append("file", wav, "reference.wav");
     form.append("name", "My Personal Voice");
-    form.append(
-      "language",
-      document.getElementById("sourceLang").value
-    );
+    form.append("language", document.getElementById("sourceLang").value);
 
     voiceStatus.textContent = "AI मध्ये Voice Save होत आहे...";
 
@@ -227,15 +234,11 @@ createBtn.onclick = async () => {
       data.data?.id;
 
     if (!newVoiceId) {
-      throw new Error(
-        "API कडून Voice ID मिळाली नाही. पुन्हा प्रयत्न करा."
-      );
+      throw new Error("API कडून Voice ID मिळाली नाही.");
     }
 
     voiceId = newVoiceId;
     localStorage.setItem("mySavedVoiceId", voiceId);
-
-    generateBtn.disabled = false;
 
     voiceStatus.textContent = "✅ तुझा Voice Save झाला!";
     setStatus("आता Text टाकून Generate Same Voice दाब.");
@@ -244,9 +247,134 @@ createBtn.onclick = async () => {
     voiceStatus.textContent = "Error: " + error.message;
     setStatus("Voice तयार झाला नाही.");
   } finally {
-    createBtn.disabled = false;
+    setBusy(false);
+  }
+}
+
+/* Video मधून Voice Save */
+createBtn.onclick = async () => {
+  const file = videoFile.files[0];
+
+  if (!file) {
+    alert("आधी Video निवडा.");
+    return;
+  }
+
+  try {
+    setBusy(true);
+    voiceStatus.textContent = "व्हिडिओमधून 15 सेकंदांचा आवाज काढत आहे...";
+    const wav = await extractReferenceAudio(file);
+    await saveMyVoice(wav);
+  } catch (error) {
+    voiceStatus.textContent = "Error: " + error.message;
+    setStatus("Video मधून आवाज काढता आला नाही.");
+    setBusy(false);
   }
 };
+
+/* Audio File मधून Voice Save */
+audioBtn.onclick = async () => {
+  const file = audioFile.files[0];
+
+  if (!file) {
+    alert("आधी Audio File निवडा.");
+    return;
+  }
+
+  try {
+    setBusy(true);
+    voiceStatus.textContent = "Audio मधून 15 सेकंदांचा आवाज काढत आहे...";
+    const wav = await extractReferenceAudio(file);
+    await saveMyVoice(wav);
+  } catch (error) {
+    voiceStatus.textContent = "Error: " + error.message;
+    setStatus("Audio मधून आवाज काढता आला नाही. समर्थित MP3 किंवा WAV फाईल वापरून पाहा.");
+    setBusy(false);
+  }
+};
+
+/* स्वतःचा आवाज Record करणे */
+recordBtn.onclick = async () => {
+
+  if (mediaRecorder && mediaRecorder.state === "recording") {
+    mediaRecorder.stop();
+    recordBtn.textContent = "🎤 Start Recording";
+    recordBtn.classList.remove("recording");
+    recordStatus.textContent = "Recording थांबवली. Audio तयार होत आहे...";
+    return;
+  }
+
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error("Microphone साठी HTTPS Browser वापरा.");
+    }
+
+    recordingStream = await navigator.mediaDevices.getUserMedia({
+      audio: true
+    });
+
+    recordedChunks = [];
+
+    let options = {};
+
+    if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
+      options.mimeType = "audio/webm;codecs=opus";
+    } else if (MediaRecorder.isTypeSupported("audio/webm")) {
+      options.mimeType = "audio/webm";
+    }
+
+    mediaRecorder = new MediaRecorder(recordingStream, options);
+
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data && event.data.size > 0) {
+        recordedChunks.push(event.data);
+      }
+    };
+
+    mediaRecorder.onstop = async () => {
+      recordingStream.getTracks().forEach(track => track.stop());
+
+      try {
+        const recordedBlob = new Blob(recordedChunks, {
+          type: mediaRecorder.mimeType || "audio/webm"
+        });
+
+        if (!recordedBlob.size) {
+          throw new Error("Recording रिकामी आहे.");
+        }
+
+        recordStatus.textContent = "Recording मधून आवाज काढत आहे...";
+        const wav = await extractReferenceAudio(recordedBlob);
+        await saveMyVoice(wav);
+        recordStatus.textContent = "✅ Recording पूर्ण झाली.";
+
+      } catch (error) {
+        recordStatus.textContent = "Error: " + error.message;
+        voiceStatus.textContent = "Recording मधून आवाज तयार झाला नाही.";
+      }
+    };
+
+    mediaRecorder.start();
+
+    recordBtn.textContent = "⏹ Stop Recording";
+    recordBtn.classList.add("recording");
+    recordStatus.textContent = "🔴 Recording सुरू आहे. पूर्ण झाल्यावर Stop दाबा.";
+
+  } catch (error) {
+    recordStatus.textContent = "Microphone Error: " + error.message;
+    alert("Microphone Permission द्या आणि पुन्हा प्रयत्न करा.");
+  }
+};
+
+/* आधी सेव्ह केलेली Voice तपासा */
+if (voiceId) {
+  voiceStatus.textContent = "✅ आधीची Voice उपलब्ध आहे.";
+  setStatus("आता Text टाकून Generate Same Voice दाब.");
+  generateBtn.disabled = false;
+} else {
+  voiceStatus.textContent = "व्हिडिओ, ऑडिओ किंवा रेकॉर्डिंग निवडा.";
+  generateBtn.disabled = true;
+}
 
 /* Generate Same Voice */
 generateBtn.onclick = async () => {
@@ -274,8 +402,7 @@ generateBtn.onclick = async () => {
       body: JSON.stringify({
         voice_id: voiceId,
         text: text,
-        language_code:
-          document.getElementById("outputLang").value
+        language_code: document.getElementById("outputLang").value
       })
     });
 
@@ -296,12 +423,9 @@ generateBtn.onclick = async () => {
       throw new Error("Audio रिकामा मिळाला.");
     }
 
-    if (resultUrl) {
-      URL.revokeObjectURL(resultUrl);
-    }
+    if (resultUrl) URL.revokeObjectURL(resultUrl);
 
     resultUrl = URL.createObjectURL(blob);
-
     resultAudio.src = resultUrl;
     resultAudio.hidden = false;
     downloadBtn.hidden = false;
