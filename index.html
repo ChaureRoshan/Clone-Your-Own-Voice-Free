@@ -145,6 +145,44 @@ textarea::placeholder{color:#5b6080}
 .btn.ghost{background:var(--panel-2);box-shadow:inset 0 0 0 1px var(--line-2)}
 .btn.ghost:hover:not(:disabled){background:rgba(255,255,255,.1);box-shadow:inset 0 0 0 1px var(--line-2)}
 .btn.sm{width:auto;margin:0;padding:13px 24px}
+
+.gated:not(:disabled){opacity:.5}
+/* consent */
+.consent{display:flex;gap:12px;align-items:flex-start;margin-top:18px;padding:14px 15px;border-radius:14px;background:rgba(255,255,255,.03);border:1px solid var(--line-2);cursor:pointer;font-size:13.5px;color:var(--muted);line-height:1.5;transition:.2s}
+.consent:hover{border-color:var(--a1)}
+.consent input{flex:none;appearance:none;-webkit-appearance:none;width:20px;height:20px;margin:1px 0 0;border-radius:6px;border:1.5px solid var(--line-2);background:rgba(0,0,0,.35);cursor:pointer;display:grid;place-items:center;transition:.2s}
+.consent input:checked{background:var(--grad);border-color:transparent}
+.consent input:checked::after{content:"";width:5px;height:10px;border:solid #fff;border-width:0 2.4px 2.4px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.consent input:focus-visible{outline:2px solid var(--a3);outline-offset:3px}
+.consent b{color:var(--text);font-weight:600}
+.consent a,.link-btn{color:#c9ccff;font-weight:600;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.consent.need{border-color:var(--bad);animation:shake .4s}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+
+/* premium */
+.pro{margin-left:2px;font-size:9.5px;font-weight:700;letter-spacing:.06em;padding:2px 6px;border-radius:6px;background:var(--grad);color:#fff}
+body.premium .pro{display:none}
+body:not(.premium) #panel-video > :not(.paywall),body:not(.premium) #panel-audio > :not(.paywall){display:none}
+body.premium .paywall{display:none}
+.paywall{text-align:center;padding:26px 18px 20px;border-radius:18px;border:1px solid rgba(139,123,255,.35);background:linear-gradient(180deg,rgba(139,123,255,.12),rgba(45,212,230,.04))}
+.paywall .lock{width:46px;height:46px;margin:0 auto 12px;border-radius:14px;display:grid;place-items:center;background:var(--grad);box-shadow:0 10px 28px rgba(99,102,241,.45)}
+.paywall .lock svg{width:22px;height:22px;color:#fff}
+.paywall h3{margin:0;font-size:18px;font-weight:600;letter-spacing:-.01em}
+.paywall p{margin:8px auto 0;max-width:380px;color:var(--muted);font-size:14px}
+.paywall .btn{margin-top:16px}
+.code-row{display:flex;gap:10px;margin-top:14px}
+.code-input{flex:1;min-width:0;font:inherit;font-size:14px;color:var(--text);background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:12px;padding:12px 14px;outline:none;transition:.2s}
+.code-input:focus{border-color:var(--a1);box-shadow:0 0 0 4px rgba(139,123,255,.16)}
+.link-btn{appearance:none;background:none;border:0;font:inherit;font-size:13.5px;margin-top:14px;padding:4px}
+
+/* terms dialog */
+dialog{border:1px solid var(--line-2);border-radius:22px;background:#10122a;color:var(--text);padding:0;max-width:min(92vw,520px);box-shadow:0 30px 90px rgba(0,0,0,.7)}
+dialog::backdrop{background:rgba(3,4,10,.7);backdrop-filter:blur(4px)}
+dialog .dlg{padding:26px}
+dialog h3{margin:0 0 12px;font-size:20px;font-weight:600}
+dialog ul{margin:0;padding-left:20px;color:#c4c8e6;font-size:14px;line-height:1.65}
+dialog li{margin-bottom:8px}
+dialog .note{margin:14px 0 0;color:var(--muted);font-size:12.5px}
 [hidden]{display:none!important}
 .btn:focus-visible,.tab:focus-visible,.drop:focus-within,.rec:focus-visible,.pp:focus-visible{outline:2px solid var(--a3);outline-offset:3px}
 
@@ -231,6 +269,7 @@ footer p{margin:0;max-width:560px}
     <symbol id="i-spark" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l1.9 5.6 5.6 1.9-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.9L12 2.5Zm7 11.5.9 2.6 2.6.9-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9L19 14Z"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
     <symbol id="i-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 16v3a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></symbol>
   </defs>
 </svg>
 
@@ -241,7 +280,7 @@ footer p{margin:0;max-width:560px}
       <div class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M4 10v4M8 6v12M12 3v18M16 7v10M20 10v4"/></svg></div>
       Vocalis
     </a>
-    <div class="pill"><i></i> Free to use</div>
+    <div class="pill" id="navPill"><i></i><span>Free plan</span></div>
   </nav>
 
   <!-- PAGE 1 — Home -->
@@ -274,14 +313,14 @@ footer p{margin:0;max-width:560px}
         <div class="num" id="num1"><span>1</span><svg><use href="#i-check"/></svg></div>
         <div>
           <h2>Capture your voice</h2>
-          <p>Upload a video or audio file, or record live.</p>
+          <p>Record live for free, or upload a video/audio file with Premium.</p>
         </div>
       </div>
 
       <div class="tabs" role="tablist" aria-label="Voice source">
         <div class="tab-bg" id="tabBg"></div>
-        <button class="tab" role="tab" id="tab-video" aria-selected="true" aria-controls="panel-video"><svg><use href="#i-video"/></svg>Video</button>
-        <button class="tab" role="tab" id="tab-audio" aria-selected="false" aria-controls="panel-audio"><svg><use href="#i-music"/></svg>Audio</button>
+        <button class="tab" role="tab" id="tab-video" aria-selected="true" aria-controls="panel-video"><svg><use href="#i-video"/></svg>Video<span class="pro">PRO</span></button>
+        <button class="tab" role="tab" id="tab-audio" aria-selected="false" aria-controls="panel-audio"><svg><use href="#i-music"/></svg>Audio<span class="pro">PRO</span></button>
         <button class="tab" role="tab" id="tab-record" aria-selected="false" aria-controls="panel-record"><svg><use href="#i-mic"/></svg>Record</button>
       </div>
 
@@ -290,6 +329,11 @@ footer p{margin:0;max-width:560px}
         <option value="hi-IN">Hindi</option>
         <option value="mr-IN">Marathi</option>
       </select>
+
+      <label class="consent" id="consentBox">
+        <input type="checkbox" id="consent">
+        <span>I confirm this is <b>my own voice</b> (or I have the speaker's clear permission), and I agree to the <a href="#" id="termsLink">Terms of Use</a>.</span>
+      </label>
 
       <div class="panel" id="panel-video" role="tabpanel" aria-labelledby="tab-video">
         <label class="drop" id="dropVideo">
@@ -389,6 +433,21 @@ footer p{margin:0;max-width:560px}
   </footer>
 </div>
 
+<dialog id="termsDialog">
+  <div class="dlg">
+    <h3>Terms of Use</h3>
+    <ul>
+      <li>You may clone only <b>your own voice</b>, or a voice whose owner has given you clear, explicit permission.</li>
+      <li>You will not use a cloned voice to impersonate someone, deceive or defraud people, harass, or spread misinformation.</li>
+      <li>You are fully responsible for the text you generate and how you use the audio.</li>
+      <li>Voice samples are personal data. Use only samples you are allowed to share, and do not upload other people's voices without permission.</li>
+      <li>We may refuse or block use that appears abusive or unlawful.</li>
+    </ul>
+    <p class="note">By ticking the box you accept these terms. Premium (cloning from video or audio files) is available with a subscription; recording your own voice is free.</p>
+    <button class="btn" id="termsClose">I understand</button>
+  </div>
+</dialog>
+
 <div id="status" role="status" aria-live="polite"><span class="spin" id="spinner" hidden></span><span id="statusText"></span></div>
 
 <script>
@@ -472,11 +531,114 @@ function showPage(name) {
 
 window.addEventListener("hashchange", () => showPage(currentRoute()));
 
+/* ---------- consent + premium gates ---------- */
+const consentEl = $("consent");
+let busyNow = false;
+
 function setBusy(value) {
-  createBtn.disabled = value;
-  audioBtn.disabled = value;
-  generateBtn.disabled = value || !voiceId;
-  recordBtn.disabled = value && !(mediaRecorder && mediaRecorder.state === "recording");
+  busyNow = value;
+  applyGates();
+}
+
+/* Buttons stay clickable (a disabled button can't explain itself); they look dimmed
+   until the consent box is ticked, and clicking them shakes the box + shows a message. */
+function applyGates() {
+  const noConsent = !consentEl.checked;
+  const recording = mediaRecorder && mediaRecorder.state === "recording";
+  createBtn.disabled = busyNow;
+  audioBtn.disabled = busyNow;
+  generateBtn.disabled = busyNow || !voiceId;
+  recordBtn.disabled = recording ? false : busyNow;
+  [createBtn, audioBtn, recordBtn].forEach((b) => b.classList.toggle("gated", noConsent));
+}
+
+function requireConsent() {
+  if (consentEl.checked) return true;
+  const box = $("consentBox");
+  box.classList.remove("need"); void box.offsetWidth; box.classList.add("need");
+  setStatus("Please confirm it's your voice and accept the Terms first.", "err");
+  return false;
+}
+
+consentEl.addEventListener("change", () => {
+  applyGates();
+  if (consentEl.checked) setStatus("Thanks — you can continue.", "ok");
+});
+
+$("termsLink").addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); $("termsDialog").showModal(); });
+$("termsClose").addEventListener("click", () => $("termsDialog").close());
+
+/* Premium = cloning from a video/audio file. Recording your own voice stays free. */
+const PREMIUM_URL = "";   // <-- put your payment / subscription link here (Razorpay Payment Page, UPI link, etc.)
+let premiumCode = "";
+try { premiumCode = localStorage.getItem("vocalisPremiumCode") || ""; } catch (_) {}
+
+function setPremium(on) {
+  document.body.classList.toggle("premium", on);
+  $("navPill").querySelector("span").textContent = on ? "Premium" : "Free plan";
+  if (!on) {
+    premiumCode = "";
+    try { localStorage.removeItem("vocalisPremiumCode"); } catch (_) {}
+  }
+}
+
+async function verifyCode(code) {
+  const res = await fetch(API_BASE + "/api/premium/verify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code })
+  });
+  const data = await res.json().catch(() => ({}));
+  return !!data.ok;
+}
+
+function paywallHtml(what) {
+  return '<div class="paywall">' +
+    '<div class="lock"><svg><use href="#i-lock"/></svg></div>' +
+    "<h3>Premium feature</h3>" +
+    "<p>Cloning from a " + what + " is part of Vocalis Premium. Recording your own voice is always free.</p>" +
+    '<button class="btn get-premium"><svg><use href="#i-spark"/></svg>Get Premium</button>' +
+    '<div class="code-row"><input class="code-input" type="text" placeholder="Have an access code?" autocomplete="off" autocapitalize="off" spellcheck="false">' +
+    '<button class="btn ghost sm unlock">Unlock</button></div>' +
+    '<button class="link-btn go-record">Record your voice for free instead →</button></div>';
+}
+
+$("panel-video").insertAdjacentHTML("afterbegin", paywallHtml("video file"));
+$("panel-audio").insertAdjacentHTML("afterbegin", paywallHtml("audio file"));
+
+document.querySelectorAll(".paywall").forEach((pw) => {
+  const input = pw.querySelector(".code-input");
+  pw.querySelector(".get-premium").onclick = () => {
+    if (PREMIUM_URL) window.open(PREMIUM_URL, "_blank", "noopener");
+    else setStatus("Premium purchase is not open yet. Please contact the site owner for an access code.", "err");
+  };
+  pw.querySelector(".go-record").onclick = () => selectTab("record");
+  const unlock = async () => {
+    const code = input.value.trim();
+    if (!code) { setStatus("Enter your access code first.", "err"); return; }
+    setStatus("Checking code…", "busy");
+    try {
+      if (await verifyCode(code)) {
+        premiumCode = code;
+        try { localStorage.setItem("vocalisPremiumCode", code); } catch (_) {}
+        setPremium(true);
+        premiumCode = code;
+        setStatus("Premium unlocked 🎉", "ok");
+      } else {
+        setStatus("That code is not valid.", "err");
+      }
+    } catch (_) {
+      setStatus("Could not reach the server. Try again in a moment.", "err");
+    }
+  };
+  pw.querySelector(".unlock").onclick = unlock;
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") unlock(); });
+});
+
+/* restore premium from a previous visit (server re-checks on every upload anyway) */
+if (premiumCode) {
+  setPremium(true);
+  verifyCode(premiumCode).then((ok) => { if (!ok) setPremium(false); }).catch(() => {});
 }
 
 /* ---------- tabs ---------- */
@@ -489,7 +651,7 @@ function selectTab(name) {
   });
 }
 tabs.forEach((t) => ($("tab-" + t).onclick = () => selectTab(t)));
-selectTab("video");
+selectTab("record");
 
 /* ---------- drop zones ---------- */
 function wireDrop(zoneId, input, nameEl) {
@@ -835,7 +997,7 @@ async function extractReferenceAudio(file) {
 }
 
 /* ---------- save voice ---------- */
-async function saveMyVoice(wav) {
+async function saveMyVoice(wav, source) {
   setBusy(true);
   try {
     refPlayer.load(wav);
@@ -844,16 +1006,21 @@ async function saveMyVoice(wav) {
     form.append("file", wav, "reference.wav");
     form.append("name", "My Personal Voice");
     form.append("language", $("sourceLang").value);
+    form.append("source", source);                 // "record" (free) or "upload" (premium)
+    form.append("consent", consentEl.checked ? "true" : "false");
+    const headers = {};
+    if (source === "upload" && premiumCode) headers["x-premium-code"] = premiumCode;
 
     setVoiceStatus("Saving your voice… The first request can take up to a minute while the server wakes up.");
     setStatus("Saving your voice…", "busy");
 
-    const response = await fetch(API_BASE + "/api/voice/create", { method: "POST", body: form });
+    const response = await fetch(API_BASE + "/api/voice/create", { method: "POST", headers, body: form });
 
     let data = {};
     try { data = await response.json(); }
     catch (_) { throw new Error("The server did not return a valid response."); }
 
+    if (response.status === 402) setPremium(false); // code missing/invalid/expired → re-lock
     if (!response.ok) throw new Error(readableError(data.error || data));
 
     const newVoiceId = data.voice_id || data.data?.voice_id || data.id || data.data?.id;
@@ -876,13 +1043,14 @@ async function saveMyVoice(wav) {
   }
 }
 
-async function handleFile(file, label) {
+async function handleFile(file, label, source) {
+  if (!requireConsent()) return;
   try {
     setBusy(true);
     setVoiceStatus("Preparing your voice from the " + label + "…");
     setStatus("Preparing your voice…", "busy");
     const wav = await extractReferenceAudio(file);
-    await saveMyVoice(wav);
+    await saveMyVoice(wav, source);
   } catch (error) {
     const message = readableError(error);
     setVoiceStatus("Error: " + message, "err");
@@ -892,15 +1060,17 @@ async function handleFile(file, label) {
 }
 
 createBtn.onclick = () => {
+  if (!requireConsent()) return;
   const file = videoFile.files[0];
   if (!file) { setStatus("Please choose a video first.", "err"); return; }
-  handleFile(file, "video");
+  handleFile(file, "video", "upload");
 };
 
 audioBtn.onclick = () => {
+  if (!requireConsent()) return;
   const file = audioFile.files[0];
   if (!file) { setStatus("Please choose an audio file first.", "err"); return; }
-  handleFile(file, "audio file");
+  handleFile(file, "audio file", "upload");
 };
 
 /* ---------- recording ---------- */
@@ -919,6 +1089,8 @@ recordBtn.onclick = async () => {
     recordStatus.textContent = "Recording stopped. Processing…";
     return;
   }
+
+  if (!requireConsent()) return;
 
   try {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -950,7 +1122,7 @@ recordBtn.onclick = async () => {
         const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || "audio/webm" });
         if (!blob.size) throw new Error("The recording is empty.");
         recordStatus.textContent = "Processing your recording…";
-        await handleFile(blob, "recording");
+        await handleFile(blob, "recording", "record");
         recordStatus.textContent = "Recording complete. Tap the mic to record again.";
       } catch (error) {
         const message = readableError(error);
@@ -1156,11 +1328,10 @@ downloadBtn.onclick = () => {
 /* ---------- init ---------- */
 if (voiceId) {
   setVoiceStatus("A saved voice is ready to use. Save a new sample above to replace it.", "ok");
-  generateBtn.disabled = false;
 } else {
-  setVoiceStatus("Choose a video, an audio file, or record your voice.");
-  generateBtn.disabled = true;
+  setVoiceStatus("Tick the confirmation above, then record your voice. It's free.");
 }
+applyGates();
 refreshSteps();
 showPage(currentRoute());
 
