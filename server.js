@@ -1,4 +1,3 @@
-
 const express = require("express");
 const multer = require("multer");
 const cors = require("cors");
@@ -36,12 +35,121 @@ app.get("/", (req, res) => {
 const PREMIUM_CODES = (process.env.PREMIUM_CODES || "")
   .split(",").map(s => s.trim()).filter(Boolean);
 
-function isPremium(code) {
-  return !!code && PREMIUM_CODES.includes(String(code).trim());
+/* ---------- Razorpay (30-day Premium pass) ----------
+   Env: RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET (never put these in the website!)
+        PREMIUM_PRICE_INR (default 199), PREMIUM_DAYS (default 30)
+        PREMIUM_SECRET (any long random string; used to sign access codes)
+   After a verified payment the server returns a signed access code that works for
+   PREMIUM_DAYS from the payment time. No database needed. */
+const crypto = require("crypto");
+
+const RZP_KEY_ID = process.env.RAZORPAY_KEY_ID;
+const RZP_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
+const PRICE_INR = Number(process.env.PREMIUM_PRICE_INR) || 199;
+const PREMIUM_DAYS = Number(process.env.PREMIUM_DAYS) || 30;
+const SIGN_SECRET = process.env.PREMIUM_SECRET || RZP_KEY_SECRET || "";
+const PAY_ENABLED = !!(RZP_KEY_ID && RZP_KEY_SECRET && SIGN_SECRET);
+
+function sign(exp) {
+  return crypto.createHmac("sha256", SIGN_SECRET).update("vc|" + exp).digest("base64url").slice(0, 22);
 }
 
+function makeToken(expSeconds) {
+  const exp = Math.floor(expSeconds).toString(36);
+  return "vc_" + exp + "_" + sign(exp);
+}
+
+function safeEqual(a, b) {
+  const x = Buffer.from(String(a)), y = Buffer.from(String(b));
+  return x.length === y.length && crypto.timingSafeEqual(x, y);
+}
+
+function tokenExpiry(code) {
+  const m = /^vc_([0-9a-z]+)_([A-Za-z0-9_-]{22})$/.exec(String(code || "").trim());
+  if (!m || !SIGN_SECRET || !safeEqual(sign(m[1]), m[2])) return 0;
+  return parseInt(m[1], 36);
+}
+
+function isPremium(code) {
+  if (!code) return false;
+  const c = String(code).trim();
+  if (PREMIUM_CODES.some(p => safeEqual(p, c))) return true;   // manual codes never expire
+  return tokenExpiry(c) > Date.now() / 1000;                   // paid, signed, 30-day codes
+}
+
+const rzpAuth = () =>
+  "Basic " + Buffer.from(RZP_KEY_ID + ":" + RZP_KEY_SECRET).toString("base64");
+
+app.get("/api/pay/config", (req, res) => {
+  res.json({ enabled: PAY_ENABLED, price: PRICE_INR, days: PREMIUM_DAYS, currency: "INR" });
+});
+
+app.post("/api/pay/order", async (req, res) => {
+  try {
+    if (!PAY_ENABLED) return res.status(503).json({ error: "Payments are not set up yet." });
+
+    const r = await fetch("https://api.razorpay.com/v1/orders", {
+      method: "POST",
+      headers: { Authorization: rzpAuth(), "Content-Type": "application/json" },
+      body: JSON.stringify({
+        amount: Math.round(PRICE_INR * 100),             // paise
+        currency: "INR",
+        receipt: "vocalis_" + Date.now().toString(36),
+        notes: { product: "vocalis_premium" }
+      })
+    });
+    const order = await r.json();
+    if (!r.ok) return res.status(502).json({ error: (order.error && order.error.description) || "Could not start payment." });
+
+    res.json({ order_id: order.id, amount: order.amount, currency: order.currency, key_id: RZP_KEY_ID });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post("/api/pay/verify", async (req, res) => {
+  try {
+    if (!PAY_ENABLED) return res.status(503).json({ error: "Payments are not set up yet." });
+
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body || {};
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({ error: "Missing payment details." });
+    }
+
+    /* 1) the signature proves Razorpay (not the browser) says this payment succeeded */
+    const expected = crypto.createHmac("sha256", RZP_KEY_SECRET)
+      .update(razorpay_order_id + "|" + razorpay_payment_id).digest("hex");
+    if (!safeEqual(expected, razorpay_signature)) {
+      return res.status(400).json({ error: "Payment could not be verified." });
+    }
+
+    /* 2) read the order from Razorpay: must be ours, and paid in full */
+    const r = await fetch("https://api.razorpay.com/v1/orders/" + encodeURIComponent(razorpay_order_id), {
+      headers: { Authorization: rzpAuth() }
+    });
+    const order = await r.json();
+    if (!r.ok || order.status !== "paid" ||
+        !order.notes || order.notes.product !== "vocalis_premium" ||
+        order.amount_paid < Math.round(PRICE_INR * 100)) {
+      return res.status(400).json({ error: "This payment is not complete." });
+    }
+
+    /* 3) validity counts from the payment time, so re-sending the same payment cannot extend it */
+    const exp = order.created_at + PREMIUM_DAYS * 86400;
+    if (exp <= Date.now() / 1000) {
+      return res.status(400).json({ error: "This payment's Premium period has already ended." });
+    }
+
+    res.json({ ok: true, code: makeToken(exp), expires_at: exp });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post("/api/premium/verify", (req, res) => {
-  res.json({ ok: isPremium(req.body && req.body.code) });
+  const code = req.body && req.body.code;
+  const exp = tokenExpiry(code);
+  res.json({ ok: isPremium(code), expires_at: exp || null });
 });
 
 app.post("/api/voice/create", upload.single("file"), async (req, res) => {
