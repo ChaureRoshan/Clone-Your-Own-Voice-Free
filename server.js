@@ -28,10 +28,45 @@ app.get("/", (req, res) => {
   res.send("AI Voice Clone Backend is running");
 });
 
+/* ---------- Premium access ----------
+   Premium = cloning from an uploaded video/audio file.
+   Recording your own voice stays free.
+   Set PREMIUM_CODES on Render (comma-separated, long random strings) and give one
+   code to each paying subscriber. Remove a code to cancel that subscriber. */
+const PREMIUM_CODES = (process.env.PREMIUM_CODES || "")
+  .split(",").map(s => s.trim()).filter(Boolean);
+
+function isPremium(code) {
+  return !!code && PREMIUM_CODES.includes(String(code).trim());
+}
+
+app.post("/api/premium/verify", (req, res) => {
+  res.json({ ok: isPremium(req.body && req.body.code) });
+});
+
 app.post("/api/voice/create", upload.single("file"), async (req, res) => {
   try {
     if (!API_KEY) {
       return res.status(500).json({ error: "API key missing" });
+    }
+
+    /* Consent is required for every sample */
+    if (req.body.consent !== "true") {
+      return res.status(400).json({
+        error: "You must confirm the voice is yours (or you have permission) and accept the Terms."
+      });
+    }
+
+    const source = req.body.source;
+    if (source !== "record" && source !== "upload") {
+      return res.status(400).json({ error: "Invalid request. Please refresh the page." });
+    }
+
+    /* Uploading a video/audio file is a Premium feature */
+    if (source === "upload" && !isPremium(req.get("x-premium-code"))) {
+      return res.status(402).json({
+        error: "Premium is required to clone from a video or audio file. Recording your own voice is free."
+      });
     }
 
     if (!req.file) {
